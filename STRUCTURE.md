@@ -40,3 +40,12 @@
 ## 4. 하지 않는 것 (합의된 불변)
 - `computeLayout`(단건 인쇄) 정상 경로 — 건드리지 않음 (R12 계약).
 - contain/노스트레치, 가이드 비인쇄, 단건·일괄 통합 UX.
+
+## 5. CMYK·순백 알파 PDF — 구현 노트 (2026-10-04, 착수 준비 완료)
+- **요구**: ①합성 이미지를 CMYK로 분리·재합치(DeviceCMYK로 저장) ②빈 곳 + **순백색 전부 알파**(무도색 → 인쇄 시 잉크 안 침) ③미리보기도 동일 규칙 (사용자 확정: 순백 전부 알파).
+- **현재**: `pure.js buildPdf` = `/DeviceRGB /Filter /DCTDecode`(JPEG, 흰배경 플랫). SMask 없음.
+- **방침**: 단건·일괄·미리보기 공통 파이프라인(composeArtFlat/cells)에서 1회 변환.
+  1. 래스터 → 픽셀 루프: `alpha = (r,g,b ≈ 255) ? 0 : 255`(순백·기존투명 통합), `C=255-R, M=255-G, Y=255-B, K=min(C,M,Y) 보정`(단순 근사 CMYK, ICC 없이).
+  2. PDF 임베드: CMYK = raw→Flate(`CompressionStream('deflate')`, buildPdf async화 검토) 또는 PNG-없음 → **Flate+Predictor 15** 경로. 알파 = DeviceGray SMask 동일 경로.
+  3. 검증: pypdfium2로 흰 배경 합성 시 기존 렌더와 동일해야 함(알파 영역=무잉크), interior·e2e·r5·savepanel 게이트 + 참고 PDF 3장 겹침 0 유지.
+- **위험**: buildPdf sync→async 시 unit 테스트 호출부 정정 필요; 페이지 크기 증가 추적.
