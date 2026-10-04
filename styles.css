@@ -308,3 +308,15 @@
   #supportRow .s-toss{border-color:rgba(86,148,255,.5); color:#7ab0ff}
   #supportRow .s-kakao{border-color:rgba(255,223,0,.5); color:#ffe680}
   @media (max-width:700px){ #supportRow{padding:0 10px 12px} #supportRow a,#supportRow button{font-size:12px; padding:6px 11px} }
+
+  /* ---- 3D model viewer (GLB) ---- */
+  #modelModal{position:fixed; inset:0; background:rgba(5,7,10,.78); backdrop-filter:blur(4px);
+    display:none; align-items:center; justify-content:center; z-index:60; padding:18px}
+  #modelModal.open{display:flex}
+  #modelModal .modal{max-width:min(88vw,760px)}
+  #modelSlot{width:min(72vw,640px); height:min(58vh,440px); border-radius:10px; overflow:hidden;
+    background:#141a26; border:1px solid var(--line); touch-action:none; position:relative}
+  #modelSlot canvas{display:block; width:100% !important; height:100% !important}
+  #modelModal .pd-head{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px}
+  #modelModal .rhint{color:var(--sub); font-size:12.5px; margin-top:9px; line-height:1.55}
+  @media (max-width:700px){ #modelSlot{width:88vw; height:46vh} }

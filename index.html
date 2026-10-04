@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>11oz 머그컵 템플릿 메이커 — 3D 미리보기 · 인쇄용 PDF</title>
-<link rel="stylesheet" href="styles.css?v=20261004e">
+<link rel="stylesheet" href="styles.css?v=20261004f">
 </head>
 <body>
 
@@ -101,6 +101,8 @@
           <b>11oz 기준</b> 높이 약 9.5cm · 지름 약 8.2cm (프린터/press에 따라 ±몇 mm 보정). 실측 재단 크기는 “사용자 지정”으로.</div>
         </details>
         </div>
+        <button class="btn small full" id="modelOpenBtn" style="margin-top:8px"
+          title="기성 3D 모델(GLB)로 미리보기 — assets/mug.glb 교체 가능">3D 모델 보기 (GLB)</button>
       </div>
     </div>
   </section>
@@ -174,6 +176,15 @@
     <h3 style="margin-top:0">렌더링 미리보기</h3>
     <div id="renderSlot"></div>
     <div class="rhint">🖱️ 드래그=회전 · Shift/우클릭=이동 · Ctrl=기울임 · 휠=줌 · 더블클릭=리셋</div>
+  </div>
+</div>
+
+<!-- 3D model viewer (ready-made GLB, experimental) -->
+<div id="modelModal">
+  <div class="modal">
+    <div class="pd-head"><h3>3D 모델 미리보기</h3><button class="btn small" id="modelClose">닫기 ✕</button></div>
+    <div id="modelSlot"></div>
+    <div class="rhint">🖱️ 드래그=회전 · 휠=줌 · 현재 디자인을 모델에 적용 · 모델: Kenney “Food Kit” mug (CC0) — <code>assets/mug.glb</code>를 원하는 모델로 교체 가능</div>
   </div>
 </div>
 
@@ -393,9 +404,24 @@
   </div>
 </div>
 
-<script src="js/pure.js?v=20261004e"></script>
-<script src="js/config.js?v=20261004e"></script>
-  <script src="js/app.js?v=20261004e"></script>
-  <script src="js/i18n.js?v=20261004e"></script>
+<script type="importmap">{"imports":{"three":"./vendor/three.module.js"}}</script>
+  <script src="js/pure.js?v=20261004f"></script>
+<script src="js/config.js?v=20261004f"></script>
+  <script src="js/app.js?v=20261004f"></script>
+  <script src="js/i18n.js?v=20261004f"></script>
+  <script>
+    /* model viewer: modules are CORS-blocked on file:// → inject only over http(s) */
+    if (location.protocol !== 'file:') {
+      var _mv = document.createElement('script');
+      _mv.type = 'module';
+      _mv.src = 'js/model-viewer.js?v=20261004f';
+      document.body.appendChild(_mv);
+    } else {
+      document.addEventListener('DOMContentLoaded', function () {
+        var mb = document.getElementById('modelOpenBtn');
+        if (mb) mb.style.display = 'none';
+      });
+    }
+  </script>
 </body>
 </html>

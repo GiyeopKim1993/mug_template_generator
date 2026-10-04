@@ -56,6 +56,8 @@
     '렌더링':                 { ja: 'レンダリング', en: 'Rendering' },
     '클릭해서 크게 보기':     { ja: 'クリックで拡大', en: 'Click to enlarge' },
     '턴테이블':               { ja: 'ターンテーブル', en: 'Turntable' },
+    '3D 모델 보기 (GLB)':     { ja: '3Dモデルを見る (GLB)', en: 'View 3D model (GLB)' },
+    '3D 모델 미리보기':        { ja: '3Dモデルプレビュー', en: '3D model preview' },
     '느리게':                 { ja: 'ゆっくり', en: 'Slow' },
     '보통':                   { ja: '普通', en: 'Medium' },
     '빠르게':                 { ja: '速い', en: 'Fast' },
