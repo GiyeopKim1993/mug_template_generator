@@ -1832,23 +1832,20 @@ function saveFilesSequential(items){
 function openSavePanel(url, blob, name){
   if(_spUrl && _spUrl!==url) URL.revokeObjectURL(_spUrl);
   _spUrl=url;
-  const kind = (blob.type||'').includes('zip')||name.endsWith('.zip') ? 'zip'
-             : name.endsWith('.dxf') ? 'dxf' : 'pdf';
+  const kind = name.endsWith('.dxf') ? 'dxf' : 'pdf';   // ZIP removed from export flow (R12)
   const body=document.getElementById('spBody');
   body.innerHTML='';
   const nm=document.createElement('div'); nm.className='sp-name'; nm.textContent=name;
   const sub=document.createElement('div'); sub.className='sp-sub';
-  sub.textContent=Math.max(1,Math.round(blob.size/1024))+' KB · '+(kind==='zip'?'ZIP(내부 PDF 여러 개)':kind==='dxf'?'DXF 컷 벡터':'PDF (100% 실제 크기)');
+  sub.textContent=Math.max(1,Math.round(blob.size/1024))+' KB · '+(kind==='dxf'?'DXF 컷 벡터':'PDF (100% 실제 크기)');
   body.appendChild(nm); body.appendChild(sub);
   const urlIn=document.createElement('input'); urlIn.className='sp-url'; urlIn.readOnly=true;
   urlIn.value=location.href;
   urlIn.onclick=()=>{ urlIn.select(); };
   body.appendChild(urlIn);
   setTimeout(()=>{ try{ urlIn.select(); }catch(e){} }, 80);
-  if(kind!=='zip'){
-    const f=document.createElement('iframe'); f.src=url; f.title='저장 미리보기';
-    body.appendChild(f);
-  }
+  { const f=document.createElement('iframe'); f.src=url; f.title='저장 미리보기';
+    body.appendChild(f); }
   const hint=document.createElement('div'); hint.className='sp-hint';
   hint.innerHTML = kind==='pdf'
     ? '미리보기가 다운로드를 차단합니다. <b>① 「새 창으로 열기」</b> → 그 창에서 내보내기 <b>② 주소 복사 → 새 탭 붙여넣기</b> <b>③ 미리보기 툴바 💾 / 우클릭 저장</b> <b>④ 버튼을 폴더로 드래그</b>'
@@ -1914,31 +1911,6 @@ function crc32(u8){
   let c=0xFFFFFFFF;
   for(let i=0;i<u8.length;i++) c=_crcT[(c^u8[i])&0xFF]^(c>>>8);
   return (c^0xFFFFFFFF)>>>0;
-}
-function zipStore(files){
-  const enc=new TextEncoder(); const parts=[]; const central=[]; let off=0;
-  for(const f of files){
-    const nb=enc.encode(f.name), crc=crc32(f.data), n=nb.length;
-    const lh=new DataView(new ArrayBuffer(30+n));
-    lh.setUint32(0,0x04034b50,true); lh.setUint16(4,20,true);
-    lh.setUint32(14,crc,true); lh.setUint32(18,f.data.length,true); lh.setUint32(22,f.data.length,true);
-    lh.setUint16(26,n,true);
-    const lhb=new Uint8Array(lh.buffer); lhb.set(nb,30);
-    parts.push(lhb, f.data);
-    const cd=new DataView(new ArrayBuffer(46+n));
-    cd.setUint32(0,0x02014b50,true); cd.setUint16(4,20,true); cd.setUint16(6,20,true);
-    cd.setUint32(16,crc,true); cd.setUint32(20,f.data.length,true); cd.setUint32(24,f.data.length,true);
-    cd.setUint16(28,n,true); cd.setUint32(42,off,true);
-    const cdb=new Uint8Array(cd.buffer); cdb.set(nb,46);
-    central.push(cdb);
-    off += 30+n+f.data.length;
-  }
-  const cdSize=central.reduce((s,c)=>s+c.length,0);
-  const eo=new DataView(new ArrayBuffer(22));
-  eo.setUint32(0,0x06054b50,true);
-  eo.setUint16(8,files.length,true); eo.setUint16(10,files.length,true);
-  eo.setUint32(12,cdSize,true); eo.setUint32(16,off,true);
-  return new Blob([...parts, ...central, new Uint8Array(eo.buffer)], {type:'application/zip'});
 }
 async function buildPdfBlob(){
   try{
