@@ -6,7 +6,7 @@ import os, sys, glob, subprocess, tempfile
 from playwright.sync_api import sync_playwright
 
 BASE = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'uploads')
-SVG2FCM_SRC = '/home/user/fcm-ref/svg2fcm-main/src'
+SVG2FCM_SRC = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'vendor')
 flags = []
 
 def main():
