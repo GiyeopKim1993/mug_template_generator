@@ -140,7 +140,6 @@ function initModelViewer() {
   const md = document.getElementById('modelModal');
   if (md) md.addEventListener('click', (e) => { if (e.target === md) closeModelModal(); });
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeModelModal(); });
-  console.log('[model-viewer] ready, btn=' + !!b);
 }
 if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', initModelViewer);
 else initModelViewer();

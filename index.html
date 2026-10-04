@@ -10,7 +10,7 @@
 
 <header>
   <h1>11oz 머그컵 <span>템플릿 메이커</span></h1>
-  <span class="badge">3D 미리보기 · 인쇄용 PDF · 100% 브라우저 (서버 없음)</span>
+  <span class="badge">3D 미리보기 · 인쇄용 PDF</span>
   <span class="spacer"></span>
   <button class="btn ghost" id="helpBtn">사용법 · 인쇄 팁</button>
 </header>
@@ -175,7 +175,6 @@
     <button class="btn small close" id="renderClose">닫기 ✕</button>
     <h3 style="margin-top:0">렌더링 미리보기</h3>
     <div id="renderSlot"></div>
-    <div class="rhint">🖱️ 드래그=회전 · Shift/우클릭=이동 · Ctrl=기울임 · 휠=줌 · 더블클릭=리셋</div>
   </div>
 </div>
 
@@ -188,7 +187,7 @@
   <div class="modal">
     <div class="pd-head"><h3>3D 모델 미리보기</h3><button class="btn small" id="modelClose">닫기 ✕</button></div>
     <div id="modelSlot"></div>
-    <div class="rhint">🖱️ 드래그=회전 · 휠=줌 · 현재 디자인을 모델에 적용 · 모델: Kenney “Food Kit” mug (CC0) — <code>assets/mug.glb</code>를 원하는 모델로 교체 가능</div>
+    <div class="rhint">현재 디자인을 모델에 적용 · 모델: Kenney “Food Kit” mug (CC0) — <code>assets/mug.glb</code>를 원하는 모델로 교체 가능</div>
   </div>
 </div>
 
@@ -205,7 +204,7 @@
   <div class="modal print-dlg">
     <div class="pd-head">
       <h3>내보내기</h3>
-      <span class="pd-sub">현재 디자인 또는 목록 전체 — 미리보기에 바로 반영 · A4 전용 · 100% 실제 크기</span>
+      <span class="pd-sub">A4 전용 · 100% 실제 크기</span>
       <button class="btn small close" id="printClose">닫기 ✕</button>
     </div>
     <div class="pd-body">
@@ -232,7 +231,7 @@
 
             <div class="row">
               <label class="lbl">용지</label>
-              <span class="kv" id="paperFixed">A4 · 210 × 297 mm <b>(고정)</b> — 인터넷 마크 템플릿과 동일</span>
+              <span class="kv" id="paperFixed">A4 · 210 × 297 mm <b>(고정)</b></span>
             </div>
 
             <div id="cutOpts">
@@ -245,10 +244,6 @@
                 </div>
                 <span class="kv" id="cutSpec">0.15pt · 페일 시안</span>
               </div>
-              <details class="mini"><summary>절취선 두께·색이 궁금하면</summary>
-                <div class="hint">재단선은 <b>0.12~0.18pt 초미세 두께</b>에 <b>거의 보이지 않는 페일 시안 색</b>을 사용합니다 —
-                인쇄해도 눈에 잘 띄지 않지만 재단 위치는 잡아 줍니다.</div>
-              </details>
             </div>
 
             <div id="markOpts" style="display:none">
@@ -343,7 +338,7 @@
     <h3>기본 사용 흐름</h3>
     <ul>
       <li>템플릿 크기 선택 (기본 <code>205 × 87 mm</code>, 인치 기원 템플릿도 선택 가능)</li>
-      <li>이미지 업로드 → 2D 편집기에서 드래그/휠로 위치·크기·회전 지정 (3D 미리보기에 바로 반영) · 미리보기(iframe) 환경에서는 브라우저가 다운로드를 차단 → 내보내기 시 <b>저장 패널</b>이 열립니다(미리보기 우클릭 저장 · 주소 복사 후 새 탭에서 바로 저장) · 일괄 내보내기는 <b>합본 PDF (A4)</b> · <b>앞면/뒷면 가이드</b>(파란 점선, 인쇄 안 됨) — 왼쪽·가운데·오른쪽 3곳 스냅(2.5mm 안으로 끌면 자동 스냅 + “왼쪽/앞면/오른쪽 정렬 ✓”), 뒷면·핸들=양쪽 가장자리(템플릿 노치/라벨 위치)</li>
+      <li>이미지 업로드 → 2D 편집기에서 드래그/휠로 위치·크기·회전 지정 (3D 미리보기에 바로 반영) · 내보내기 시 <b>저장 패널</b>이 열립니다 · 일괄 내보내기는 <b>합본 PDF (A4)</b> · <b>앞면/뒷면 가이드</b>(파란 점선, 인쇄 안 됨) — 왼쪽·가운데·오른쪽 3곳 스냅(2.5mm 안으로 끌면 자동 스냅 + “왼쪽/앞면/오른쪽 정렬 ✓”), 뒷면·핸들=양쪽 가장자리(템플릿 노치/라벨 위치)</li>
       <li>3D 뷰: <b>드래그</b>=회전(상하=고도) · <b>Shift/우클릭 드래그</b>=화면 이동 · <b>Ctrl 드래그</b>=좌우 기울임 · <b>휠</b>=줌 · <b>더블클릭</b>=뷰 리셋 · <b>턴테이블</b>=자동 360° 회전(속도 선택 가능, 드래그해서 놓으면 관성 회전)</li>
       <li><b>내보내기 다이얼로그</b>(상단·우측 레일 버튼 또는 <kbd>Ctrl/⌘+P</kbd>) — <b>범위(현재 디자인/목록 전체)</b>·모드·마크·배치를 왼쪽에서, <b>미리보기</b>·PDF/DXF 내보내기를 오른쪽/하단에서 · 용지는 <b>A4 전용</b> · 100% 크기로 인쇄</li>
       <li><b>디자인·레이어</b>: 이미지는 레이어로 쌓입니다 — 목록에서 <b>순서 바꾸기(▲▼)·보이기/숨기기·삭제·선택</b>, 정렬 버튼 6개(좌/가운데/우·상/중앙/하)로 템플릿에 맞춤. <b>+새 디자인</b>으로 시트를 따로 만들고, 배치가 2개 이상이면 <b>배치별 디자인</b>으로 서로 다른 디자인을 한 페이지에 섞어 인쇄할 수 있습니다 (같은 것도 여러 개, 다른 것도 여러 개)</li>
@@ -360,7 +355,7 @@
 
     <h3>모드 1 — 재단선 포함 (가위/재단기용)</h3>
     <ul>
-      <li>템플릿 <b>외곽선(노치 포함)</b>을 따라 <b>0.15pt 초미세 · 페일 시안 절취선</b>이 인쇄됩니다 — 인쇄해도 거의 보이지 않는 색이라 절취 후에도 눈에 띄지 않습니다.</li>
+      <li>템플릿 <b>외곽선(노치 포함)</b>을 따라 <b>0.15pt 페일 시안 절취선</b>이 인쇄됩니다(거의 보이지 않는 색).</li>
       <li><b>배치(중복 인쇄)</b>: 재단선 모드는 <b>가로 최대 3개 / 세로 최대 2개</b>까지 한 페이지에 배치됩니다.</li>
       <li>재단선 바깥의 안내문은 잘라내면 사라지는 여백용 텍스트입니다.</li>
       <li>종이 재단기(트리머)로 선을 따라 재단 → 전사 테이프로 머그에 고정.</li>
@@ -368,9 +363,9 @@
 
     <h3>모드 2 — 인식 마크만 인쇄 (절취선 없음)</h3>
     <ul>
-      <li><b>실루엣 (Silhouette Type 1)</b>: 좌상단 사각 마크 + 우상단·좌하단 L자 마크 — 공식 <i>Silhouette Connect</i> 매뉴얼의 도면에서 <b>이미지로 추출</b해 PDF의 별도 레이어(OCG)로 배치했습니다 (임의 그리기 아님). Studio 기본값 준수: 인셋 15.875mm · 길이 20mm · 두께 0.99mm(0.039″), 용지 <b>A4</b> (온라인의 A4 프린트컷 템플릿과 동일 배치).
+      <li><b>실루엣 (Silhouette Type 1)</b>: 좌상단 사각 마크 + 우상단·좌하단 L자 마크 — 공식 <i>Silhouette Connect</i> 매뉴얼의 도면에서 <b>이미지로 추출</b> PDF의 별도 레이어(OCG)로 배치했습니다 (임의 그리기 아님). Studio 기본값 준수: 인셋 15.875mm · 길이 20mm · 두께 0.99mm(0.039″), 용지 <b>A4</b>
         Studio에서 <code>페이지 설정 → 등록 마크 → Type 1, A4</code>를 맞춘 뒤 재단 사각형을 그리면 컷 데이터가 됩니다. (PDF는 마크와 도면만 인쇄)</li>
-      <li><b>브라더 스캔앤컷 DX (Print to Cut)</b>: 네 모서리 타깃(동심원+바) 마크 — 공식 <i>Brother ScanNCut Link</i> 매뉴얼 다이어그램에서 <b>이미지로 추출</b해 별도 레이어로 배치했습니다. 용지 <b>A4</b> (공식 매뉴얼 예시 · 온라인 A4 템플릿 모두 A4 아트보드).
+      <li><b>브라더 스캔앤컷 DX (Print to Cut)</b>: 네 모서리 타깃(동심원+바) 마크 — 공식 <i>Brother ScanNCut Link</i> 매뉴얼 다이어그램에서 <b>이미지로 추출</b> 별도 레이어로 배치했습니다. 용지 <b>A4</b>
         CanvasWorkspace에서 <code>Artboard Size = A4</code> + <code>Show Registration Mark</code>를 켜고 재단 사각형(= 템플릿 크기)을 그려 FCM으로 전송하세요. 배치가 조금 다를 경우를 대비해 마크 위치 오차가 있으면 기기의 스캔(직접 컷) 기능을 쓰세요.</li>
       <li>이 모드에서는 <b>절취선을 인쇄하지 않습니다</b> — 대신 <b>DXF 내보내기</b>로 컷 외곽 벡터 파일을 받아 실루엣 스튜디오/브라더 캔버스에 그대로 불러오세요 (레이어 불필요, mm 단위, 페이지 좌표 일치).</li>
       <li>이 모드의 배치는 <b>세로만</b> 가능하며 병렬 <b>최대 2개</b>까지 배치됩니다.</li>
@@ -383,7 +378,6 @@
       <li>머그/프린터마다 오차가 있으니, 첫 시안을 재단해서 실측 → “사용자 지정” 크기로 보정하세요.</li>
       <li>재단선 색은 “아주 옅게 → 옅게 → 보통” 중 출력 결과에 맞게 고르면 됩니다.</li>
     </ul>
-    <p class="kv" style="margin-top:14px">이 도구는 완전히 클라이언트 사이드로 동작합니다 (서버 전송 없음 · 오프라인 사용 가능).</p>
   </div>
 </div>
 

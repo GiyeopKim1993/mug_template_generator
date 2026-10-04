@@ -20,7 +20,6 @@
     '11oz 머그컵':            { ja: '11oz マグカップ', en: '11oz Mug' },
     '템플릿 메이커':          { ja: 'テンプレートメーカー', en: 'Template Maker' },
     '3D 미리보기 · 인쇄용 PDF · 100% 브라우저 (서버 없음)': { ja: '3Dプレビュー · 印刷用PDF · ブラウザ内完結（サーバー不要）', en: '3D preview · Print-ready PDF · 100% in-browser (no server)' },
-    '인쇄 설정':              { ja: '印刷設定', en: 'Print Setup' },
     '사용법 · 인쇄 팁':       { ja: '使い方 · 印刷のコツ', en: 'Help · Print tips' },
 
     /* ---- tool rail ---- */
@@ -91,15 +90,9 @@
     /* ---- output card ---- */
     '출력':                   { ja: '出力', en: 'Output' },
     '100% 실제 크기':         { ja: '100% 実寸', en: '100% actual size' },
-    '재단선 포함 · A4 · 옅게 (기본) · 세로 배치 · 1개 · 미러':
-      { ja: '裁断線あり · A4 · 淡色（既定） · 縦配置 · 1枚 · ミラー', en: 'Cut lines · A4 · light (default) · portrait · 1-up · mirror' },
-    '인쇄 설정…':             { ja: '印刷設定…', en: 'Print setup…' },
     '모드 · 용지 · 마크 · 배치 · 미리보기 · PDF/DXF — 전부 다이얼로그에서':
       { ja: 'モード · 用紙 · マーク · 配置 · プレビュー · PDF/DXF — すべてダイアログで', en: 'Mode · paper · marks · layout · preview · PDF/DXF — all in the dialog' },
     '임시 저장':              { ja: '一時保存', en: 'Stash' },
-    '목록에 쌓고 한번에':     { ja: 'リストに貯めて一括処理', en: 'Stack in a list, export at once' },
-    '＋ 임시 저장':           { ja: '＋ 一時保存', en: '＋ Stash' },
-    '임시 저장 목록':         { ja: '一時保存リスト', en: 'Stash list' },
     '전체 내보내기':          { ja: 'すべて書き出し', en: 'Export all' },
     '닫기 ✕':                 { ja: '閉じる ✕', en: 'Close ✕' },
 
@@ -107,20 +100,14 @@
     '💾 저장 패널':           { ja: '💾 保存パネル', en: '💾 Save panel' },
     '일괄 내보내기':          { ja: '一括書き出し', en: 'Batch export' },
     '방식':                   { ja: '方法', en: 'Method' },
-    '합본 PDF (한 장에 배치)': { ja: '結合PDF（1ページに配置）', en: 'Combined PDF (one sheet)' },
-      '등록 마크(기기)':        { ja: 'レジストレーションマーク（機器）', en: 'Registration marks (device)' },
-    '실루엣 Type 1':          { ja: 'Silhouette Type 1', en: 'Silhouette Type 1' },
     '브라더 스캔앤컷 DX':      { ja: 'Brother ScanNCut DX', en: 'Brother ScanNCut DX' },
     '용지':                   { ja: '用紙', en: 'Paper' },
     '합본: 임시 저장들을 세로로 재배치한 단일 PDF — 작업별 디자인·미러는 각자 설정 그대로, 마크·용지는 아래 선택':
       { ja: '結合: 一時保存を縦に並べた単一PDF — 作業ごとのデザイン・ミラーは各自の設定、マーク・用紙は下で選択', en: 'Combined: one PDF restacking your stashes — per-job design/mirror kept as-is; pick marks/paper below' },
     '내보내기':               { ja: '書き出し', en: 'Export' },
-    '모드 · 용지 · 마크 · 배치 — 미리보기에 바로 반영 · 출력은 100% 실제 크기':
-      { ja: 'モード · 用紙 · マーク · 配置 — プレビューに即反映 · 出力は100%実寸', en: 'Mode · paper · marks · layout — live in preview · output at 100% actual size' },
 
     /* ---- print dialog ---- */
     '인쇄 내용':              { ja: '印刷内容', en: 'Print content' },
-    '재단선 포함 · A4 · 옅게 (기본)': { ja: '裁断線あり · A4 · 淡色（既定）', en: 'Cut lines · A4 · light (default)' },
     '출력 모드':              { ja: '出力モード', en: 'Output mode' },
     '재단선 포함':            { ja: '裁断線あり', en: 'With cut lines' },
     '인식 마크만 (실루엣/스캔앤컷)': { ja: '認識マークのみ（Silhouette/ScanNCut）', en: 'Recognition marks only (Silhouette/ScanNCut)' },
@@ -131,7 +118,6 @@
     '실루엣 (Type 1)':        { ja: 'Silhouette（Type 1）', en: 'Silhouette (Type 1)' },
     '마크·DXF 안내':          { ja: 'マーク・DXF の案内', en: 'Marks & DXF guide' },
     '배치':                   { ja: '配置', en: 'Layout' },
-    '세로 배치 · 1개 · 미러':  { ja: '縦配置 · 1枚 · ミラー', en: 'Portrait · 1-up · mirror' },
     '자동':                   { ja: '自動', en: 'Auto' },
     '세로':                   { ja: '縦', en: 'Portrait' },
     '가로':                   { ja: '横', en: 'Landscape' },
@@ -141,11 +127,8 @@
     '3개':                    { ja: '3枚', en: '3-up' },
     '좌우 반전(미러) 인쇄':   { ja: '左右反転（ミラー）印刷', en: 'Mirror print (flip horizontal)' },
     '배치별 디자인':          { ja: '配置ごとのデザイン', en: 'Design per slot' },
-    'A4 · 세로 배치 · 1개 · 재단선 인쇄 · 미러':
-      { ja: 'A4 · 縦配置 · 1枚 · 裁断線印刷 · ミラー', en: 'A4 · portrait · 1-up · cut lines · mirror' },
     'PDF 내보내기':           { ja: 'PDF 書き出し', en: 'Export PDF' },
     'DXF 내보내기 (컷 외곽)':  { ja: 'DXF 書き出し（カット外形）', en: 'Export DXF (cut outline)' },
-    'A4 세로 배치 · 1개  ·  여백 확인 ✓': { ja: 'A4 縦配置 · 1枚  ·  余白確認 ✓', en: 'A4 portrait · 1-up · margins ✓' },
 
     /* ---- footer ---- */
     '브라우저 안에서만 동작합니다 — 업로드한 이미지가 어디에도 전송되지 않습니다. ·':
@@ -155,7 +138,6 @@
     '기본 사용 흐름':         { ja: '基本の流れ', en: 'Basic workflow' },
     '인쇄 요령':              { ja: '印刷のコツ', en: 'Print tips' },
     '앞면/뒷면 가이드':       { ja: '前面/裏面ガイド', en: 'Front/back guides' },
-    '인쇄 설정 다이얼로그':   { ja: '印刷設定ダイアログ', en: 'Print setup dialog' },
     '디자인·레이어':          { ja: 'デザイン·レイヤー', en: 'Design & layers' },
     '작업창·렌더링·임시저장': { ja: '作業窓·レンダリング·一時保存', en: 'Workspace · rendering · stash' },
     '모드 1 — 재단선 포함 (가위/재단기용)': { ja: 'モード1 — 裁断線あり（はさみ/トリマー用）', en: 'Mode 1 — With cut lines (scissors/trimmer)' },
@@ -168,7 +150,6 @@
     '휠':                     { ja: 'ホイール', en: 'Wheel' },
     '더블클릭':               { ja: 'ダブルクリック', en: 'Double-click' },
       '저장 패널':              { ja: '保存パネル', en: 'save panel' },
-    '한번에 내보내기':        { ja: '一括書き出し', en: 'export all at once' },
     '100% (실제 크기)':       { ja: '100%（実寸）', en: '100% (actual size)' },
     'DXF 내보내기':           { ja: 'DXF 書き出し', en: 'DXF export' },
     '절취선을 인쇄하지 않습니다': { ja: '裁断線は印刷しません', en: 'Cut lines are not printed' },
@@ -176,7 +157,6 @@
     '최대 2개':               { ja: '最大2枚', en: 'max 2-up' },
     '가로 최대 3개 / 세로 최대 2개': { ja: '横 最大3枚 / 縦 最大2枚', en: 'up to 3 across / 2 down' },
     '자동으로 개수를 줄이고 안내': { ja: '枚数を自動削減して案内', en: 'auto-reduces count and notifies' },
-    '레시피 없음':            { ja: 'なし', en: 'none' },
 
     /* ---- R5: unified export list + support ---- */
     '내보내기 목록':          { ja: '書き出しリスト', en: 'Export list' },
