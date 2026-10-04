@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>11oz 머그컵 템플릿 메이커 — 3D 미리보기 · 인쇄용 PDF</title>
-<link rel="stylesheet" href="styles.css?v=20261004i">
+<link rel="stylesheet" href="styles.css?v=20261004j">
 </head>
 <body>
 
@@ -12,7 +12,6 @@
   <h1>11oz 머그컵 <span>템플릿 메이커</span></h1>
   <span class="badge">3D 미리보기 · 인쇄용 PDF · 100% 브라우저 (서버 없음)</span>
   <span class="spacer"></span>
-  <button class="btn primary" id="printOpenTop" title="내보내기 다이얼로그 열기 (Ctrl/⌘+P)">내보내기 <kbd>⌘P</kbd></button>
   <button class="btn ghost" id="helpBtn">사용법 · 인쇄 팁</button>
 </header>
 
@@ -328,7 +327,7 @@
   </div>
 </div>
 
-<footer><span>브라우저 안에서만 동작합니다 — 업로드한 이미지가 어디에도 전송되지 않습니다. · <b id="buildTag" style="color:#8fb4ff"></b></span></footer>
+<footer><span>브라우저 안에서만 동작합니다 — 업로드한 이미지가 어디에도 전송되지 않습니다.</span></footer>
 <div id="supportRow" aria-label="후원 링크"></div>
 
 <div id="toast"></div>
@@ -384,16 +383,16 @@
 </div>
 
 <script type="importmap">{"imports":{"three":"./vendor/three.module.js"}}</script>
-  <script src="js/pure.js?v=20261004i"></script>
-<script src="js/config.js?v=20261004i"></script>
-  <script src="js/app.js?v=20261004i"></script>
-  <script src="js/i18n.js?v=20261004i"></script>
+  <script src="js/pure.js?v=20261004j"></script>
+<script src="js/config.js?v=20261004j"></script>
+  <script src="js/app.js?v=20261004j"></script>
+  <script src="js/i18n.js?v=20261004j"></script>
   <script>
     /* model viewer: modules are CORS-blocked on file:// → inject only over http(s) */
     if (location.protocol !== 'file:') {
       var _mv = document.createElement('script');
       _mv.type = 'module';
-      _mv.src = 'js/model-viewer.js?v=20261004i';
+      _mv.src = 'js/model-viewer.js?v=20261004j';
       document.body.appendChild(_mv);
     } else {
       document.addEventListener('DOMContentLoaded', function () {

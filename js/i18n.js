@@ -102,8 +102,7 @@
     '일괄 내보내기':          { ja: '一括書き出し', en: 'Batch export' },
     '방식':                   { ja: '方法', en: 'Method' },
     '합본 PDF (한 장에 배치)': { ja: '結合PDF（1ページに配置）', en: 'Combined PDF (one sheet)' },
-    '개별 PDF (ZIP)':         { ja: '個別PDF（ZIP）', en: 'Separate PDFs (ZIP)' },
-    '등록 마크(기기)':        { ja: 'レジストレーションマーク（機器）', en: 'Registration marks (device)' },
+      '등록 마크(기기)':        { ja: 'レジストレーションマーク（機器）', en: 'Registration marks (device)' },
     '실루엣 Type 1':          { ja: 'Silhouette Type 1', en: 'Silhouette Type 1' },
     '브라더 스캔앤컷 DX':      { ja: 'Brother ScanNCut DX', en: 'Brother ScanNCut DX' },
     '용지':                   { ja: '用紙', en: 'Paper' },
@@ -162,8 +161,7 @@
     'Ctrl 드래그':            { ja: 'Ctrlドラッグ', en: 'Ctrl-drag' },
     '휠':                     { ja: 'ホイール', en: 'Wheel' },
     '더블클릭':               { ja: 'ダブルクリック', en: 'Double-click' },
-    '단일 ZIP':               { ja: '単一 ZIP', en: 'one ZIP' },
-    '저장 패널':              { ja: '保存パネル', en: 'save panel' },
+      '저장 패널':              { ja: '保存パネル', en: 'save panel' },
     '한번에 내보내기':        { ja: '一括書き出し', en: 'export all at once' },
     '100% (실제 크기)':       { ja: '100%（実寸）', en: '100% (actual size)' },
     'DXF 내보내기':           { ja: 'DXF 書き出し', en: 'DXF export' },
@@ -180,9 +178,7 @@
     '＋ 목록 추가':           { ja: '＋ リストに追加', en: '+ Add to list' },
     '목록':                   { ja: 'リスト', en: 'List' },
     '개':                     { ja: '枚', en: 'up' },
-    '실루엣/브라더 컷 파일 포함 (DXF+SVG — ZIP으로 같이 저장)':
-      { ja: 'Silhouette/Brother カットファイル同梱（DXF+SVG — ZIPで保存）', en: 'Include Silhouette/Brother cut files (DXF+SVG — saved as ZIP)' },
-    '💜 토스로 후원':          { ja: '💜 トスで支援', en: '💜 Donate via Toss' },
+      '💜 토스로 후원':          { ja: '💜 トスで支援', en: '💜 Donate via Toss' },
     '💛 카카오페이 후원':       { ja: '💛 カカオペイで支援', en: '💛 Donate via KakaoPay' },
     '🔓 후원자 코드':           { ja: '🔓 支援者コード', en: '🔓 Supporter code' }
   };

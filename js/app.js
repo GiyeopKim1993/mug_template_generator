@@ -104,7 +104,7 @@ function toast(msg, kind){
 }
 
 /* ---------- wrap texture (flat artwork) ---------- */
-const BUILD_V = 'v4.15';                      // single source of truth (footer + stage chip)
+const BUILD_V = 'v4.16';                      // single source of truth (footer + stage chip)
 /* 운영 설정은 js/config.js (관리 페이지가 수정하는 파일)에서 관리합니다. */
 const MT_CFG_DEFAULT = {
   version:1,
@@ -117,8 +117,6 @@ const MT_CFG_DEFAULT = {
 const CFG = (typeof window!=='undefined' && window.MT_CONFIG) ? window.MT_CONFIG : MT_CFG_DEFAULT;
 const SUPPORT = CFG.support || MT_CFG_DEFAULT.support;
 const AD = CFG.ad || MT_CFG_DEFAULT.ad;
-document.addEventListener('DOMContentLoaded', ()=>{ const t=document.getElementById('buildTag'); if(t) t.textContent='빌드 '+BUILD_V; });
-if(document.getElementById('buildTag')) document.getElementById('buildTag').textContent='빌드 '+BUILD_V;
 const tex = document.createElement('canvas');
 function drawArtwork(ctx, W, H, ppm, mirror, designIdx, env){
   const E = env || state;                          // S3a: pass a draft env for state-free rendering
@@ -512,14 +510,6 @@ function renderMug(t){
   if(cosH > 0) drawHandle(sctx, cx, O, r, bodyHs, th, true, legY1, legY2);
 
   sctx.restore();   // roll transform off
-
-  // build chip (screen-space, canvas-only → never prints/PDFs; a screenshot self-certifies the build)
-  sctx.save();
-  sctx.font = '600 12px ui-monospace, SFMono-Regular, monospace';
-  sctx.fillStyle = 'rgba(255,255,255,0.55)';
-  sctx.textAlign = 'left'; sctx.textBaseline = 'bottom';
-  sctx.fillText('빌드 ' + BUILD_V, 10, H - 8);
-  sctx.restore();
 }
 
 /* turntable + flick momentum + free view (orbit / pan / roll / zoom) */
@@ -620,7 +610,6 @@ function openPrint(scope){
 }
 function closePrint(){ printModal.classList.remove('open'); }
 $('#printOpen').addEventListener('click', openPrint);
-$('#printOpenTop').addEventListener('click', openPrint);
 $('#printClose').addEventListener('click', closePrint);
 printModal.addEventListener('click', e=>{ if(e.target===printModal) closePrint(); });
 document.addEventListener('keydown', e=>{
@@ -1833,10 +1822,10 @@ function saveFilesSequential(items){
     _spQueue = items.slice(1);
     const it=items[0];
     openSavePanel(URL.createObjectURL(it.blob), it.blob, it.name);
-    toast('저장 패널: 파일 1/'+items.length+' — 저장 후 닫으면 다음 파일이 열립니다','ok');
+    toast('파일 1/'+items.length+' — 저장 후 닫으면 다음이 열립니다','ok');
   }else{
     items.forEach((it,i)=> setTimeout(()=>saveFile(it.blob, it.name, true), i*400));
-    toast(items.length+'개 파일을 개별 다운로드합니다 (ZIP 없음)','ok');
+    toast(items.length+'개 파일을 내려받습니다','ok');
   }
 }
 function openSavePanel(url, blob, name){
@@ -1999,14 +1988,13 @@ async function exportPdf(){
   const btn=$('#exportBtn'); btn.disabled=true;
   try{
     if(state.exportScope==='list' && drafts.length){
-      // 목록 전체 = 합본 PDF + (옵션) 컷 파일을 개별 저장 — ZIP 없음
+      // 목록 전체 = 합본 PDF + (옵션) 컷 파일 개별 저장
       try{
         const withCut = !!(document.getElementById('bmCut')||{}).checked;
         const {pdf, name, cutFiles} = await buildImposedPdf(state.machine, 'a4',
           {mode: state.mode==='cut'?'cut':'mark', orient: state.orient});
         const framed=saveFile(new Blob([pdf], {type:'application/pdf'}), name);
-        toast(framed ? '저장 패널 열림: '+name+' — 패널에서 저장하세요'
-                     : '합본 PDF 저장 완료: '+name+'  ('+drafts.length+'개 배치 · A4 최소 용지)','ok');
+        toast(framed ? '저장 패널: '+name : '저장 완료: '+name,'ok');
         if(withCut && cutFiles && cutFiles.length){
           setTimeout(()=>saveFilesSequential(cutFiles.map(f=>({
             blob:new Blob([f.data], {type:'application/octet-stream'}), name:f.name}))), 600);
@@ -2019,8 +2007,7 @@ async function exportPdf(){
     const {pdf, name} = await buildPdfBlob();
     const blob=new Blob([pdf], {type:'application/pdf'});
     const framed=saveFile(blob, name);
-    toast(framed ? '저장 패널 열림: '+name+' — 패널에서 저장하세요'
-                 : 'PDF 저장 완료: '+name+'  (100% 크기로 인쇄!)','ok');
+    toast(framed ? '저장 패널: '+name : '저장 완료: '+name,'ok');
   }catch(err){
     console.error(err);
     toast(err.message || 'PDF 생성 실패','err');
@@ -2133,7 +2120,7 @@ $('#draftList').addEventListener('click', async e=>{
     try{
       const {pdf, name} = await buildPdfBlob();
       const framed=saveFile(new Blob([pdf], {type:'application/pdf'}), name);
-      toast(framed ? '저장 패널 열림: '+name+' — 패널에서 저장하세요' : 'PDF 저장 완료: '+name,'ok');
+      toast(framed ? '저장 패널: '+name : '저장 완료: '+name,'ok');
     }catch(err){ console.error(err); toast(err.message||'PDF 생성 실패','err'); }
     finally{ updateExportUI(); }
   }
@@ -2143,7 +2130,7 @@ $('#draftSaveBtn').addEventListener('click', ()=>{
   d.n = Math.max(1, Math.min(99, Math.round(+(($('#draftSaveN')||{}).value)||1)));
   drafts.push(d);
   renderDrafts(); syncScopeUI();
-  toast('목록 추가됨 ('+d.n+'개) — 목록 '+drafts.length+'항목, 「전체 내보내기」로 최소 용지 배치','ok');
+  toast('목록에 추가됨 ('+d.n+'개)','ok');
 });
 async function computeImposedPages(machine, paperKey, opt){
   opt = opt || {};
@@ -2296,8 +2283,7 @@ function exportDxf(){
       (state.paper==='letter'?'-letter':'-a4')+
       (L.nCopies>1?'-x'+L.nCopies:'')+'.dxf';
     const framed=saveFile(blob, name);
-    toast(framed ? '저장 패널 열림: '+name+' — 패널에서 저장하세요'
-                 : 'DXF 저장 완료: '+name+'  (스튜디오에서 불러오세요)','ok');
+    toast(framed ? '저장 패널: '+name : '저장 완료: '+name,'ok');
   }catch(err){
     console.error(err);
     toast(err.message==='layout' ? '템플릿이 페이지 영역에 맞지 않습니다 — 배치/크기를 조정하세요' : 'DXF 생성 실패: '+err.message,'err');
