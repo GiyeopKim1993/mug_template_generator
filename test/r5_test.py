@@ -65,6 +65,33 @@ def main():
             check(npath==6, f'all 6 packed cells present across svg pages (got {npath})')
         shutil.rmtree(tmp, ignore_errors=True)
 
+        # --- 3b. batch: mode (cut/mark) + orientation options ---
+        p.click('#draftExportAll'); p.wait_for_selector('#batchModal.open')
+        check(p.locator('#bmArtRow').is_visible(), 'batch has 출력 모드 row')
+        check(p.locator('#bmOrientRow').is_visible(), 'batch has 방향 row')
+        # mark mode: horizontal disabled, machine row visible
+        check(p.locator('#bmOrientSeg button[data-v="h"]').is_disabled(), 'mark mode locks orientation to 세로')
+        check(p.locator('#bmMachRow').is_visible(), 'mark mode shows machine row')
+        # cut mode: horizontal enabled, machine hidden, export → cut filename
+        p.click('#bmArtSeg button[data-v="cut"]'); p.wait_for_timeout(150)
+        check(not p.locator('#bmOrientSeg button[data-v="h"]').is_disabled(), 'cut mode enables 가로')
+        check(p.locator('#bmMachRow').is_hidden(), 'cut mode hides machine row')
+        p.click('#bmOrientSeg button[data-v="h"]'); p.wait_for_timeout(100)
+        p.uncheck('#bmCut')   # isolate the plain-PDF path (zip path covered above)
+        with p.expect_download(timeout=30000) as dl3:
+            p.click('#bmGo')
+        cn = dl3.value.suggested_filename
+        check(cn.endswith('.pdf') and '-cut-h-' in cn, 'cut+horizontal batch pdf (%s)' % cn)
+        import tempfile as _tf, shutil as _sh
+        _td=_tf.mkdtemp(); _cp=_td+'/c.pdf'; dl3.value.save_as(_cp)
+        try:
+            import pypdfium2 as pdfium
+            doc=pdfium.PdfDocument(_cp)
+            txt=doc[0].get_textpage().get_text_range() if hasattr(doc[0],'get_textpage') else ''
+            check('CUT ALONG THE LINE' in txt, 'cut-mode page prints cut caption (got %r)' % txt[:60])
+            _sh.rmtree(_td, ignore_errors=True)
+        except ImportError:
+            pass
         # --- 4. support buttons (3 donate + 1 donor-code) ---
         btns = p.locator('#supportRow > *').count()
         check(btns==4, 'support row renders 4 buttons (got %d)' % btns)

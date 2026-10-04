@@ -104,7 +104,7 @@ function toast(msg, kind){
 }
 
 /* ---------- wrap texture (flat artwork) ---------- */
-const BUILD_V = 'v4.11';                      // single source of truth (footer + stage chip)
+const BUILD_V = 'v4.12';                      // single source of truth (footer + stage chip)
 /* 운영 설정은 js/config.js (관리 페이지가 수정하는 파일)에서 관리합니다. */
 const MT_CFG_DEFAULT = {
   version:1,
@@ -2002,43 +2002,77 @@ function openBatchModal(){
 }
 function syncBatchRows(){
   const impose = document.querySelector('#bmModeSeg button.on').dataset.v==='impose';
-  document.getElementById('bmMachRow').style.display = impose ? '' : 'none';
+  const art = document.querySelector('#bmArtSeg button.on').dataset.v;   // mark | cut
+  document.getElementById('bmArtRow').style.display = impose ? '' : 'none';
+  document.getElementById('bmOrientRow').style.display = impose ? '' : 'none';
+  document.getElementById('bmMachRow').style.display = (impose && art==='mark') ? '' : 'none';
   document.getElementById('bmPaperRow').style.display = impose ? '' : 'none';
   document.getElementById('bmCutRow').style.display = impose ? '' : 'none';
-  document.getElementById('bmHint').textContent = impose
-    ? '합본: 목록의 모든 작업을 배치 개수만큼 최소 용지로 재배치한 단일 PDF — 작업별 디자인·미러는 각자 설정 그대로, 마크·용지는 아래 선택'
-    : '개별: 작업마다(배치 개수만큼) PDF를 만들어 ZIP으로 한 번에 — 마크·용지는 각 작업에 저장된 설정 그대로';
+  // 인식 마크 모드는 세로 배치 전용 (페이지 안전영역 폭 한계)
+  const hBtn = document.querySelector('#bmOrientSeg button[data-v="h"]');
+  const vBtn = document.querySelector('#bmOrientSeg button[data-v="v"]');
+  if(art==='mark'){
+    hBtn.disabled = true;
+    hBtn.title = '마크 모드는 세로만 지원합니다 (인쇄 안전영역 폭 한계)';
+    setSegActive('#bmOrientSeg', 'v');
+  }else{
+    hBtn.disabled = false;
+    hBtn.title = '';
+  }
+  const orient = document.querySelector('#bmOrientSeg button.on').dataset.v;
+  document.getElementById('bmHint').textContent = !impose
+    ? '개별: 작업마다(배치 개수만큼) PDF를 만들어 ZIP으로 한 번에 — 마크·용지는 각 작업에 저장된 설정 그대로'
+    : art==='cut'
+      ? '합본(절취선): 모든 작업을 배치 개수만큼 최소 용지에 재배치 + 절취선 인쇄 — 방향 '+(orient==='h'?'가로':'세로')+' · 용지 아래 선택 · 컷 파일(DXF/SVG) 함께 저장 가능'
+      : '합본(마크): 모든 작업을 배치 개수만큼 최소 용지에 재배치 + '+
+        (document.querySelector('#bmMachSeg button.on').dataset.v==='silhouette'?'실루엣':'브라더')+
+        ' 등록 마크 인쇄(세로 전용) · 용지 아래 선택 · 컷 파일(DXF/SVG) 함께 저장 가능';
 }
 segBind('#bmModeSeg', ()=>syncBatchRows());
-segBind('#bmMachSeg', ()=>{});
+segBind('#bmArtSeg', ()=>syncBatchRows());
+segBind('#bmOrientSeg', ()=>syncBatchRows());
+segBind('#bmMachSeg', ()=>syncBatchRows());
 segBind('#bmPaperSeg', ()=>{});
-async function buildImposedPdf(machine, paperKey){
+async function buildImposedPdf(machine, paperKey, opt){
+  opt = opt || {};
+  const artMode = opt.mode==='cut' ? 'cut' : 'mark';               // 절취선 vs 인식마크
+  const orient  = (opt.orient==='h' || opt.orient==='v') ? opt.orient
+                  : (artMode==='mark' ? 'v' : 'h');                  // 방향 (마크는 세로 전용)
+  const rot = orient==='v';
   const pg=PAPER[paperKey];
-  const box=safeBox('mark', machine, pg);
+  // 절취선 모드는 단건 배치(computeLayout)와 동일한 2.5mm 여백을 쓴다 (205mm 가로가 정확히 맞도록)
+  const box = artMode==='cut'
+    ? {x:2.5, y:2.5, w:pg.w-5, h:pg.h-5}
+    : safeBox('mark', machine, pg);
   const gap=3;
   const pages=[]; let cur=[], cy=box.y, cx=box.x;
   for(const d of drafts){
     applyDraft(d, true);
     const di=designIdxFor(0);
     const flat=await composeArtFlat(di);
-    // mark mode prints VERTICAL only — rotate the cell 90° (exactly, never stretched)
-    const R=document.createElement('canvas');
-    R.width=flat.height; R.height=flat.width;
-    const rc=R.getContext('2d');
-    rc.fillStyle='#fff'; rc.fillRect(0,0,R.width,R.height);
-    rc.translate(0, R.height); rc.rotate(-Math.PI/2);
-    rc.drawImage(flat, 0, 0, R.height, R.width);
+    let R=flat;
+    if(rot){
+      // vertical cell — rotate the artwork 90° (exactly, never stretched)
+      R=document.createElement('canvas');
+      R.width=flat.height; R.height=flat.width;
+      const rc=R.getContext('2d');
+      rc.fillStyle='#fff'; rc.fillRect(0,0,R.width,R.height);
+      rc.translate(0, R.height); rc.rotate(-Math.PI/2);
+      rc.drawImage(flat, 0, 0, R.height, R.width);
+    }
     const bytes=new Uint8Array(await new Promise((res,rej)=>{
       R.toBlob(b=> b?res(b.arrayBuffer()):rej(new Error('jpeg')), 'image/jpeg', 0.94);
     }));
-    const cw=d.wrap.h, ch=d.wrap.w;               // rotated footprint (mm)
+    const cw=rot ? d.wrap.h : d.wrap.w;            // footprint (mm)
+    const ch=rot ? d.wrap.w : d.wrap.h;
+    const or=orient;
     const reps=Math.max(1, Math.min(99, d.n||1)); // per-design batch count
     for(let k=0;k<reps;k++){
       if(cw>box.w+0.05 || ch>box.h+0.05)
-        throw new Error('작업 1개가 안전영역보다 큽니다: '+d.name+' ('+d.wrap.w+'×'+d.wrap.h+'mm)');
+        throw new Error('작업 1개가 안전영역보다 큽니다: '+d.name+' ('+d.wrap.w+'×'+d.wrap.h+'mm'+(rot?' · 세로':' · 가로')+')');
       if(cx+cw>box.x+box.w+0.05){ cx=box.x; cy+=ch+gap; }
       if(cy+ch>box.y+box.h+0.05){ pages.push(cur); cur=[]; cx=box.x; cy=box.y; }
-      cur.push({bytes, wPx:R.width, hPx:R.height, x:cx, y:cy, wMm:cw, hMm:ch,
+      cur.push({bytes, wPx:R.width, hPx:R.height, x:cx, y:cy, wMm:cw, hMm:ch, or,
                 wrap:{w:d.wrap.w, h:d.wrap.h}, notch:d.notch});
       cx+=cw+gap;
     }
@@ -2047,7 +2081,9 @@ async function buildImposedPdf(machine, paperKey){
   if(!pages.length) throw new Error('임시 저장이 없습니다');
   const outPages=pages.map((cells,pi)=>{
     const ops=[];
-    for(const mk of markPrims(machine, pg)) primToOps(mk, ops);
+    if(artMode==='mark'){
+      for(const mk of markPrims(machine, pg)) primToOps(mk, ops);
+    }
     let uT=1e9, uB=-1e9;
     const pt2=(mm)=>mm2pt(pg.h-mm);
     for(const c of cells){
@@ -2055,33 +2091,64 @@ async function buildImposedPdf(machine, paperKey){
         x:mm2pt(c.x), y:pt2(c.y+c.hMm), wPt:mm2pt(c.wMm), hPt:mm2pt(c.hMm)});
       uT=Math.min(uT,c.y); uB=Math.max(uB,c.y+c.hMm);
     }
-    const nm=machine==='silhouette'?'SILHOUETTE TYPE 1 REGISTRATION MARKS (EXTRACTED)'
-                                  :'BROTHER SCANNCUT REGISTRATION MARKS (EXTRACTED)';
+    // 절취선 모드: 실제 템플릿 아웃라인(노치 포함)을 각 셀에 정확히 인쇄
+    if(artMode==='cut'){
+      const st=CUT_STYLES.light;
+      const col={r:st.col[0], g:st.col[1], b:st.col[2]};
+      for(const c of cells){
+        const T = (c.or==='v')
+          ? (x,y)=>[c.x + y, c.y + c.hMm - x]
+          : (x,y)=>[c.x + x, c.y + y];
+        const pts = wrapSegs(c.wrap.w, c.wrap.h, c.notch).map(sg=>{
+          const P=(i)=>{ const q=T(sg[i],sg[i+1]); return [mm2pt(q[0]), pt2(q[1])]; };
+          if(sg[0]==='M'){ const q=P(1); return ['M',q[0],q[1]]; }
+          if(sg[0]==='L'){ const q=P(1); return ['L',q[0],q[1]]; }
+          const c1=P(1), c2=P(3), e=P(5);
+          return ['C',c1[0],c1[1],c2[0],c2[1],e[0],e[1]];
+        });
+        ops.push({op:'path', pts, closed:true, stroke:{r:col.r, g:col.g, b:col.b, w:st.w}});
+      }
+    }
     const ctext=(txt,size,topMm,gray)=>{
       const wEst=txt.length*size*0.55;
       ops.push({op:'text', x:Math.max(mm2pt(5), mm2pt(pg.w/2)-wEst/2), y:pt2(topMm),
         size, gray, text:txt});
     };
-    ctext('11oz MUG WRAP  -  '+cells.length+' designs  -  '+nm, 8,
-      Math.min(pg.h-9, uB+7), 0.4);
-    ctext('no cut lines printed - print at 100% scale on '+pg.name+' - page '+(pi+1)+'/'+pages.length, 6.5,
-      Math.min(pg.h-5.5, uB+12), 0.55);
+    if(artMode==='cut'){
+      const cwr = cells[0].wrap;
+      ctext('11oz MUG FULL WRAP  -  '+cells.length+' designs  -  '+cwr.w+' x '+cwr.h+' mm  -  CUT ALONG THE LINE', 8,
+        Math.max(4, uT-11.5), 0.42);
+      ctext('print at 100% scale (no fit-to-page)  -  page '+(pi+1)+'/'+pages.length, 6.5,
+        Math.max(4, uT-6.5), 0.55);
+      ctext('11oz MUG WRAP TEMPLATE - '+pg.name+' - handle cutouts at both short edges', 6.5,
+        Math.min(pg.h-5, uB+5.5), 0.55);
+    }else{
+      const nm=machine==='silhouette'?'SILHOUETTE TYPE 1 REGISTRATION MARKS (EXTRACTED)'
+                                    :'BROTHER SCANNCUT REGISTRATION MARKS (EXTRACTED)';
+      ctext('11oz MUG WRAP  -  '+cells.length+' designs  -  '+nm, 8,
+        Math.min(pg.h-9, uB+7), 0.4);
+      ctext('no cut lines printed - print at 100% scale on '+pg.name+' - page '+(pi+1)+'/'+pages.length, 6.5,
+        Math.min(pg.h-5.5, uB+12), 0.55);
+    }
     return {widthPt:mm2pt(pg.w), heightPt:mm2pt(pg.h), ops};
   });
   const pdf=buildPdf(outPages, {title:'11oz Mug Wrap Imposed '+drafts.length+' designs'});
-  const name='11oz-mug-imposed-'+drafts.length+'-'+machine+'-'+paperKey+
-    (pages.length>1?'-x'+pages.length+'p':'')+'.pdf';
+  const name = artMode==='cut'
+    ? '11oz-mug-imposed-'+drafts.length+'-cut-'+orient+'-'+paperKey+
+      (pages.length>1?'-x'+pages.length+'p':'')+'.pdf'
+    : '11oz-mug-imposed-'+drafts.length+'-'+machine+'-'+paperKey+
+      (pages.length>1?'-x'+pages.length+'p':'')+'.pdf';
   // machine cut files matching the imposed cells (per page, 1:1 mm, y-down)
   const enc=new TextEncoder();
   const cutFiles=[];
   pages.forEach((cells,pi)=>{
     if(!cells.length) return;
-    const copies=cells.map(c=>({x:c.x, y:c.y, w:c.wMm, h:c.hMm, or:'v'}));
+    const copies=cells.map(c=>({x:c.x, y:c.y, w:c.wMm, h:c.hMm, or:c.or||'v'}));
     const wraps=cells.map(c=>c.wrap);
     const notches=cells.map(c=>c.notch);
     const base={copies, pageW:pg.w, pageH:pg.h,
                 wrap:cells[0].wrap, notch:cells[0].notch, wraps, notches};
-    const tag=machine+'-p'+(pi+1);
+    const tag=(artMode==='cut' ? 'cut-'+orient : machine)+'-p'+(pi+1);
     cutFiles.push({name:'11oz-cut-'+tag+'.dxf', data:enc.encode(buildDxf(base))});
     cutFiles.push({name:'11oz-cut-'+tag+'.svg', data:enc.encode(buildSvg(base))});
   });
@@ -2123,7 +2190,9 @@ $('#bmGo').addEventListener('click', async ()=>{
       await batchZip();
     }else{
       const withCut=!!(document.getElementById('bmCut')||{}).checked;
-      const {pdf, name, cutFiles} = await buildImposedPdf(machine, paperKey);
+      const art=document.querySelector('#bmArtSeg button.on').dataset.v;
+      const orient=document.querySelector('#bmOrientSeg button.on').dataset.v;
+      const {pdf, name, cutFiles} = await buildImposedPdf(machine, paperKey, {mode:art, orient});
       closeBatchModal();
       if(withCut && cutFiles && cutFiles.length){
         const files=[{name, data:new Uint8Array(await new Blob([pdf]).arrayBuffer())}, ...cutFiles];
