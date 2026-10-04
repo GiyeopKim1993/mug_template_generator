@@ -294,6 +294,35 @@ function rectsOverlap(a,b){
   return a.x < b.x+b.w && a.x+a.w > b.x && a.y < b.y+b.h && a.y+a.h > b.y;
 }
 
+/* Shelf-pack the NEXT cell (cw×ch mm) starting from (startX,startY), dodging
+   forbidden mark zones. Returns {x,y,pages}: x,y = placement (page top-left
+   coords) and pages = how many page-breaks must happen BEFORE placing there
+   (0/1). Returns null when the cell cannot fit even on a fresh page.
+   Horizontal shelf wrap happens first, then zones push the row down, then
+   the page breaks — repeat until stable. Pure & unit-tested. */
+function resolveCellSpot(box, gap, zones, cw, ch, startX, startY){
+  let x = startX, y = startY, pages = 0;
+  const zs = zones || [];
+  const maxCols = Math.max(1, Math.floor((box.w + gap) / (cw + gap)));
+  const rowW = maxCols * cw + (maxCols - 1) * gap;   // full row footprint (mm)
+  for(let guard=0; guard<40; guard++){
+    if(x + cw > box.x + box.w + 0.05){ x = box.x; y += ch + gap; continue; }
+    // validate zone clearance for the WHOLE row when the row starts —
+    // keeps side-by-side cells aligned instead of staggering them
+    if(Math.abs(x - box.x) < 1e-6){
+      const r = {x, y, w:Math.min(rowW, box.w), h:ch};
+      const z = zs.find(zz => rectsOverlap(r, zz));
+      if(z){ y = z.y + z.h + 0.5; continue; }
+    }
+    if(y + ch > box.y + box.h + 0.05){                // vertical overflow
+      if(pages > 0) return null;                      // fresh page already tried
+      x = box.x; y = box.y; pages++; continue;
+    }
+    return {x, y, pages};
+  }
+  return null;
+}
+
 /* Resolve orientation + placement. Returns full layout or {error}. */
 function computeLayout(args){
   const wrap = args.wrap;                 // {w,h} mm

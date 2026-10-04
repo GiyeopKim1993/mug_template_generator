@@ -194,16 +194,17 @@ async def main():
         dl = []
         page.on('download', lambda d: dl.append(d))
         await page.click('#draftExportAll')
-        await page.wait_for_selector('#batchModal.open')
-        await page.click('#bmModeSeg button[data-v="single"]')
-        await page.click('#bmGo')
+        await page.wait_for_selector('#printModal.open')
+        await page.wait_for_function("() => !document.getElementById('printModal').classList.contains('busy')", timeout=30000)
+        await page.click('#exportBtn')
         for _ in range(40):
             if len(dl) >= 1: break
             await page.wait_for_timeout(250)
         await page.wait_for_timeout(600)
         dnames = [d.suggested_filename for d in dl]
-        if len(dl) != 1 or not dnames[0].endswith('.zip'):
-            flags.append(f'batch export got {dnames} (want exactly 1 zip)')
+        if len(dl) != 1 or not (dnames[0].endswith('.pdf') and 'imposed' in dnames[0]):
+            flags.append(f'batch export got {dnames} (want exactly 1 imposed pdf)')
+        await page.click('#printClose'); await page.wait_for_timeout(400)   # modal backdrop tints stage shots -> close first
         await chk3d('batch-restore')
 
         # ---------- P9 render modal cycles ----------

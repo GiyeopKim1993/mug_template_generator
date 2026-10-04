@@ -91,20 +91,14 @@ async def main():
         await d3.save_as(bro_path)
         print('downloaded:', d3.suggested_filename, os.path.getsize(bro_path), 'bytes')
 
-        # mark mode must default to A4 (online A4 mark templates)
-        paper_val = await page.eval_on_selector('#paperSel', 'el => el.value')
+        # A4 ONLY — letter option removed from the export dialog
+        n_sel = await page.eval_on_selector_all('#paperSel', 'els => els.length')
+        assert n_sel == 0, f'paper select should be removed (A4 only), found {n_sel}'
+        ptxt = await page.eval_on_selector('#paperFixed', 'el => el.textContent')
+        assert 'A4' in ptxt, f'fixed paper row should show A4: {ptxt}'
         cap = await page.eval_on_selector('#prevCap', 'el => el.textContent')
-        assert paper_val == 'a4', f'mark mode default paper should be a4, got {paper_val}'
         assert cap.startswith('A4'), f'caption should show A4: {cap}'
-        # Letter must remain selectable
-        await open_print(page)
-        await page.select_option('#paperSel', 'letter')
-        await page.wait_for_timeout(300)
-        capL = await page.eval_on_selector('#prevCap', 'el => el.textContent')
-        assert 'US Letter' in capL, f'letter selection should show US Letter: {capL}'
-        await page.select_option('#paperSel', 'a4')
-        await page.wait_for_timeout(300)
-        print('paper default (mark) = A4, letter selectable OK')
+        print('paper = A4 ONLY (letter removed) OK')
 
         # forced vertical placement: preview must show ROTATED artwork (not stretched):
         # top edge of art = design top row: notch bites at 20%/80% of design height

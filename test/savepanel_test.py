@@ -29,33 +29,27 @@ def main():
         if panel: fails.append('top-level should NOT open save panel')
         p.click('#printClose'); p.wait_for_timeout(400)
 
-        # ---- batch modal: impose PDF (machine picker) then per-draft ZIP ----
+        # ---- unified export: scope=list impose PDF (machine picker), NO zip mode ----
         for _ in range(2):
             p.click('#draftSaveBtn'); p.wait_for_timeout(250)
         p.click('#draftExportAll')
-        p.wait_for_selector('#batchModal.open')
-        p.click('#bmMachSeg button[data-v="brother"]')
+        p.wait_for_selector('#printModal.open')
+        if p.locator('#paperSel').count() != 0:
+            fails.append('letter select should be gone (A4 only)')
+        p.click('#modeSeg button[data-v="mark"]')
+        p.wait_for_function("!document.getElementById('printModal').classList.contains('busy')", timeout=30000)
+        p.click('#markSeg button[data-v="brother"]')
+        p.wait_for_function("!document.getElementById('printModal').classList.contains('busy')", timeout=30000)
         with p.expect_download() as di2:
-            p.click('#bmGo')
+            p.click('#exportBtn')
         n2 = di2.value.suggested_filename
         print('impose download:', n2)
         if not (n2.endswith('.pdf') and 'imposed' in n2 and 'brother' in n2):
             fails.append('bad impose filename: '+n2)
+        if n2.endswith('.zip'):
+            fails.append('zip must be gone from export: '+n2)
         with open(di2.value.path(),'rb') as f:
             if f.read(5) != b'%PDF-': fails.append('impose file is not a PDF')
-        p.click('#draftExportAll'); p.wait_for_selector('#batchModal.open')
-        p.click('#bmModeSeg button[data-v="single"]')
-        with p.expect_download() as di3:
-            p.click('#bmGo')
-        n3 = di3.value.suggested_filename
-        print('zip download:', n3)
-        if not n3.endswith('.zip'):
-            fails.append('bad zip filename: '+n3)
-        import zipfile as _zf
-        with _zf.ZipFile(di3.value.path()) as z:
-            nmz = z.namelist()
-            if z.testzip() is not None or not any(x.endswith('-s1.pdf') for x in nmz):
-                fails.append(f'zip contents bad: {nmz}')
         ctx.close()
 
         # ---- framed (sandbox preview): save panel instead of silent failure ----
@@ -82,14 +76,19 @@ def main():
             fails.append('save panel did not close')
         # close print modal so sidebar is reachable again
         body.locator('#printClose').click(); p.wait_for_timeout(400)
-        # framed batch: MODAL opens first — impose (default) -> panel with imposed PDF
+        # framed list export: unified dialog (scope=list) -> panel with imposed PDF
         for _ in range(3):
             body.locator('#draftSaveBtn').click(); p.wait_for_timeout(200)
         body.locator('#draftExportAll').click()
-        body.locator('#batchModal.open').wait_for(timeout=6000)
-        if not body.locator('#bmMachRow').is_visible():
-            fails.append('impose mode should show machine picker')
-        body.locator('#bmGo').click(); p.wait_for_timeout(5000)
+        body.locator('#printModal.open').wait_for(timeout=6000)
+        if body.locator('#bmCutRow').count() < 1:
+            fails.append('list scope should show cut-file row')
+        if body.locator('#paperSel').count() != 0:
+            fails.append('letter select should be gone (A4 only)')
+        for _ in range(100):
+            if body.locator('#printModal.busy').count() == 0: break
+            p.wait_for_timeout(300)
+        body.locator('#exportBtn').click(); p.wait_for_timeout(5000)
         if not body.locator('#savePanel.open').is_visible():
             fails.append('framed impose did not open save panel')
         nm = body.locator('#savePanel .sp-name').inner_text() if body.locator('#savePanel.open').count() else ''
@@ -102,17 +101,18 @@ def main():
         if body.locator('#savePanel .sp-drag').count() < 1:
             fails.append('save panel missing drag link')
         body.locator('#spClose').click(); p.wait_for_timeout(300)
-        # then single (ZIP) mode -> panel with zip
-        body.locator('#draftExportAll').click()
-        body.locator('#batchModal.open').wait_for(timeout=6000)
-        body.locator('#bmModeSeg button[data-v="single"]').click()
-        if body.locator('#bmMachRow').is_visible():
-            fails.append('machine row should hide in single mode')
-        body.locator('#bmGo').click(); p.wait_for_timeout(5000)
+        # then scope=-single -> panel with a plain PDF (zip removed entirely)
+        body.locator('#printClose').click(); p.wait_for_timeout(300)
+        body.locator('#printOpen').click()
+        body.locator('#printModal.open').wait_for(timeout=6000)
+        body.locator('#scopeSeg button[data-v="single"]').click()
+        if body.locator('#bmCutRow').is_visible():
+            fails.append('cut-file row should hide in single scope')
+        body.locator('#exportBtn').click(); p.wait_for_timeout(4000)
         nm2 = body.locator('#savePanel .sp-name').inner_text() if body.locator('#savePanel.open').count() else ''
-        if not nm2.endswith('.zip'):
-            fails.append(f'batch panel should show a zip, got: {nm2}')
-        print('framed zip panel name:', nm2)
+        if not nm2.endswith('.pdf'):
+            fails.append(f'single panel should show a pdf (no zip), got: {nm2}')
+        print('framed single panel name:', nm2)
         if dls: fails.append(f'framed context unexpectedly downloaded: {dls}')
         ctx.close()
 
@@ -124,7 +124,7 @@ def main():
         print('FAILURES:')
         for f in fails: print(' -', f)
         sys.exit(1)
-    print('SAVE PANEL TESTS OK — top-level direct download ✓ framed panel ✓ zip batch ✓')
+    print('SAVE PANEL TESTS OK — top-level direct download ✓ framed panel ✓ list impose (no zip) ✓')
 
 if __name__ == '__main__':
     main()

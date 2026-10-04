@@ -104,7 +104,7 @@ function toast(msg, kind){
 }
 
 /* ---------- wrap texture (flat artwork) ---------- */
-const BUILD_V = 'v4.13';                      // single source of truth (footer + stage chip)
+const BUILD_V = 'v4.14';                      // single source of truth (footer + stage chip)
 /* 운영 설정은 js/config.js (관리 페이지가 수정하는 파일)에서 관리합니다. */
 const MT_CFG_DEFAULT = {
   version:1,
@@ -598,12 +598,9 @@ function closeRenderModal(){
 }
 $('#renderClose').addEventListener('click', closeRenderModal);
 $('#spClose').addEventListener('click', closeSavePanel);
-$('#batchClose').addEventListener('click', closeBatchModal);
-$('#bmCancel').addEventListener('click', closeBatchModal);
-document.getElementById('batchModal').addEventListener('click', e=>{ if(e.target.id==='batchModal') closeBatchModal(); });
 document.getElementById('savePanel').addEventListener('click', e=>{ if(e.target.id==='savePanel') closeSavePanel(); });
 renderModal.addEventListener('click', e=>{ if(e.target===renderModal) closeRenderModal(); });
-document.addEventListener('keydown', e=>{ if(e.key==='Escape'){ closeRenderModal(); closeSavePanel(); closeBatchModal(); } });
+document.addEventListener('keydown', e=>{ if(e.key==='Escape'){ closeRenderModal(); closeSavePanel(); } });
 stage.addEventListener('click', ()=>{
   if(renderModal.classList.contains('open') || _rmTimer) return;
   if((mug._dragDist||0)>6) return;               // drag, not a click
@@ -613,7 +610,13 @@ stage.addEventListener('dblclick', ()=>{ clearTimeout(_rmTimer); _rmTimer=null; 
 
 /* ---------- print settings dialog ---------- */
 const printModal=$('#printModal');
-function openPrint(){ printModal.classList.add('open'); }
+state.exportScope='single';
+function openPrint(scope){
+  if(scope==='list' && drafts.length){ state.exportScope='list'; setSegActive('#scopeSeg','list'); }
+  else { state.exportScope='single'; setSegActive('#scopeSeg','single'); }   // rail/⌘P = current design
+  syncScopeUI();
+  printModal.classList.add('open');
+}
 function closePrint(){ printModal.classList.remove('open'); }
 $('#printOpen').addEventListener('click', openPrint);
 $('#printOpenTop').addEventListener('click', openPrint);
@@ -1426,8 +1429,7 @@ function setSegActive(sel, v){
 }
 segBind('#modeSeg', v=>{
   state.mode=v;
-  state.paper = 'a4';   // online Silhouette/ScanNCut mark templates are A4 — use those
-  $('#paperSel').value = state.paper;
+  state.paper = 'a4';   // A4 only — online Silhouette/ScanNCut mark templates are A4
   // mark modes print VERTICAL only (세로) — hide auto/horizontal choices
   if(v==='mark'){
     if(state.orient!=='v'){ state._orientBefore=state.orient; state.orient='v'; }
@@ -1443,8 +1445,7 @@ segBind('#modeSeg', v=>{
   $('#markOpts').style.display = v==='mark'?'':'none';
   updateMarkHint(); drawPagePrev(); updateExportUI();
 });
-$('#paperSel').addEventListener('change', e=>{ state.paper=e.target.value; drawPagePrev(); updateExportUI(); updateMarkHint(); });
-$('#notchChk').addEventListener('change', e=>{ state.notch=e.target.checked; scheduleDraws(); });
+$('#notchChk').addEventListener('change', e=>{ state.notch=e.target.checked; scheduleDraws(); if(state.exportScope==='list') requestImposedPrev(); });
 segBind('#cutSeg', v=>{
   state.cutStyle=v;
   $('#cutSpec').textContent = CUT_STYLES[v].spec;
@@ -1498,6 +1499,7 @@ function currentLayout(){
 
 /* ---------- A4 page preview ---------- */
 const pv=$('#pagePrev'), pctx=pv.getContext('2d');
+const _imp = {key:null, pages:null, p:0, timer:0, building:false, queued:false};   // imposed preview cache (declared early — drawPagePrev may run at init)
 function wrapSegsToCtx(ctx, segs, T, s){
   // T: wrap-mm -> page-mm ; s: mm -> px
   const P=(x,y)=>{ const q=T(x,y); return [q[0]*s, q[1]*s]; };
@@ -1513,6 +1515,11 @@ function cutTransform(a){
                       : ((x,y)=>[a.x + x, a.y + y]);
 }
 function drawPagePrev(){
+  if(state.exportScope==='list' && drafts.length){
+    if(_imp.key===imposedKey()){ if(_imp.pages) renderImposedPrev(); }
+    else requestImposedPrev();
+    return;
+  }
   syncCopies();
   const L=currentLayout();
   const pg=L.page;
@@ -1597,24 +1604,147 @@ function updateExportUI(){
   syncCopies();
   const L=currentLayout();
   const ok=L.fits;
+  const listScope = state.exportScope==='list' && drafts.length;
   $('#sumContent').textContent =
     (state.mode==='cut' ? '재단선 포함'
       : (state.machine==='silhouette' ? '실루엣' : '브라더')+' 마크만')
-    + ' · ' + (state.paper==='letter' ? 'Letter' : 'A4')
+    + ' · A4'
     + (state.mode==='cut' ? ' · '+CUT_STYLES[state.cutStyle].label : '');
   $('#sumLayout').textContent =
     (L.art.or==='v' ? '세로' : '가로') + ' 배치 · ' + L.nCopies + '개'
     + (state.mirror ? ' · 미러' : '');
-  $('#exportBtn').disabled=!ok;
-  $('#dxfBtn').style.display = state.mode==='mark' ? '' : 'none';
+  $('#exportBtn').disabled = listScope ? (!drafts.length || _imp.building) : !ok;
+  $('#dxfBtn').style.display = (listScope || state.mode!=='mark') ? 'none' : '';
   $('#dxfBtn').disabled=!ok;
-  $('#fitInfo').textContent = ok
-    ? L.page.name+' '+ (L.art.or==='v'?'세로':'가로') +' 배치 · '+L.nCopies+'개  ·  여백 확인 ✓'
-    : (state.mode==='mark' ? '⚠ 인식 마크 영역 확인 — 개수·크기를 줄여주세요'
-                           : '⚠ 페이지 범위 초과 — 개수·크기를 줄여주세요');
-  $('#fitInfo').style.color = ok? 'var(--ok)':'var(--err)';
+  if(listScope){
+    const total = drafts.reduce((s,d)=>s+Math.max(1,Math.min(99,d.n||1)),0);
+    $('#fitInfo').textContent = 'A4 합본 · '+drafts.length+'개 작업 × '+total+'매 · 최소 용지로 재배치 · 미리보기에서 쪽 확인 ✓';
+    $('#fitInfo').style.color='var(--ok)';
+    $('#sumLayout').textContent = '합본 방향 · '+(currentLayout().art.or==='v'?'세로':'가로')+' 전용(각 작업 배치 개수는 목록에서)';
+  } else {
+    $('#fitInfo').textContent = ok
+      ? L.page.name+' '+ (L.art.or==='v'?'세로':'가로') +' 배치 · '+L.nCopies+'개  ·  여백 확인 ✓'
+      : (state.mode==='mark' ? '⚠ 인식 마크 영역 확인 — 개수·크기를 줄여주세요'
+                             : '⚠ 페이지 범위 초과 — 개수·크기를 줄여주세요');
+    $('#fitInfo').style.color = ok? 'var(--ok)':'var(--err)';
+  }
   const mini=$('#pdMini');
   if(mini) mini.textContent = $('#sumContent').textContent + ' · ' + $('#sumLayout').textContent;
+}
+
+/* =========================================================================
+   Export scope (현재 디자인 / 목록 전체) + imposed preview
+   ========================================================================= */
+function imposedKey(){
+  return [drafts.length, drafts.map(d=>Math.max(1,Math.min(99,d.n||1))).join('.'),
+          state.mode, state.orient, state.machine, state.notch?1:0].join('|');
+}
+function syncScopeUI(){
+  const hasList = drafts.length>0;
+  const listBtn = document.querySelector('#scopeSeg button[data-v=\"list\"]');
+  if(listBtn) listBtn.disabled = !hasList;
+  if(!hasList && state.exportScope==='list'){ state.exportScope='single'; setSegActive('#scopeSeg','single'); }
+  const list = state.exportScope==='list' && hasList;
+  // list scope: keep 방향(orientSeg) — hide per-page copies/mirror only
+  const copiesRow = document.getElementById('copiesRow');
+  if(copiesRow) copiesRow.style.display = list ? 'none' : '';
+  const cdRow = document.getElementById('copyDesignRow');
+  if(cdRow) cdRow.style.display = list ? 'none' : '';
+  const cutRow = document.getElementById('bmCutRow');
+  if(cutRow) cutRow.style.display = list ? '' : 'none';
+  const sh = document.getElementById('scopeHint');
+  if(sh) sh.textContent = list
+    ? '임시 저장 '+drafts.length+'건을 A4 최소 용지로 합본 (쪽수는 미리보기)'
+    : '한 장 내보내기 (배치·미러 적용)';
+  const eb = document.getElementById('exportBtn');
+  if(eb) eb.textContent = list ? '합본 PDF 내보내기' : 'PDF 내보내기';
+  const nv = document.getElementById('prevNav');
+  if(nv) nv.style.display = list ? '' : 'none';
+  if(list) requestImposedPrev(); else { _imp.pages=null; _imp.key=null; drawPagePrev(); }
+  updateExportUI();
+}
+segBind('#scopeSeg', v=>{ state.exportScope=v; syncScopeUI(); });
+function requestImposedPrev(){
+  clearTimeout(_imp.timer);
+  _imp.timer=setTimeout(buildImposedPrev, 300);
+}
+async function buildImposedPrev(){
+  if(!drafts.length || state.exportScope!=='list') return;
+  if(_imp.building){ _imp.queued=true; return; }          // no concurrent builds (state races)
+  if(_imp.key===imposedKey() && _imp.pages){ renderImposedPrev(); return; }
+  _imp.building=true;
+  const modalEl=document.getElementById('printModal');
+  if(modalEl) modalEl.classList.add('busy');
+  updateExportUI();
+  const keep=snapshotNow('원본');
+  const key=imposedKey();          // captured with UI state BEFORE compute mutates it
+  try{
+    const {pages} = await computeImposedPages(state.machine, 'a4',
+      {mode: state.mode==='cut'?'cut':'mark', orient: state.orient});
+    _imp.pages=pages; _imp.p=Math.max(0, Math.min(_imp.p, pages.length-1)); _imp.key=key;
+  }catch(e){
+    console.warn('imposed preview failed', e);
+    _imp.key=key; _imp.pages=null;    // negative cache — don't loop
+    const pc=document.getElementById('prevCap');
+    if(pc) pc.textContent='미리보기 오류: '+(e.message||e);
+  }finally{
+    _imp.building=false;
+    if(modalEl) modalEl.classList.remove('busy');
+    applyDraft(keep, true); renderDrafts(); updateExportUI();
+    if(_imp.queued){ _imp.queued=false; setTimeout(buildImposedPrev, 80); }
+  }
+  if(_imp.key===imposedKey()){ if(_imp.pages) renderImposedPrev(); }
+}
+function renderImposedPrev(){
+  if(!_imp.pages || !_imp.pages.length) return;
+  _imp.p=Math.max(0, Math.min(_imp.p, _imp.pages.length-1));
+  const info=document.getElementById('prevPgInfo');
+  if(info) info.textContent=(_imp.p+1)+' / '+_imp.pages.length;
+  const pc=document.getElementById('prevCap');
+  if(pc) pc.textContent='합본 미리보기 · '+_imp.pages.length+'쪽 · '+
+    (state.mode==='cut' ? '절취선 인쇄' :
+      ((state.machine==='silhouette'?'실루엣':'브라더')+' 등록 마크 인쇄'))+
+    (state.mode==='mark'?' · 세로 전용':'');
+  drawOpsPage(pv, pctx, _imp.pages[_imp.p]);
+}
+document.getElementById('prevPgPrev').addEventListener('click', ()=>{ _imp.p--; renderImposedPrev(); });
+document.getElementById('prevPgNext').addEventListener('click', ()=>{ _imp.p++; renderImposedPrev(); });
+/* draw computed PDF ops (pt, y-up) onto the preview canvas */
+async function drawOpsPage(cv, cx2, page){
+  if(!cv || !page) return;
+  const W=cv.width, H=cv.height, s=W/page.widthPt;
+  cx2.setTransform(1,0,0,1,0,0);
+  cx2.fillStyle='#3a4152'; cx2.fillRect(0,0,W,H);
+  cx2.fillStyle='#fff'; cx2.fillRect(0,0,page.widthPt*s, page.heightPt*s);
+  for(const op of page.ops){
+    if(op.op==='image'){
+      try{
+        if(!op._bmp) op._bmp = await createImageBitmap(new Blob([op.bytes],{type:'image/jpeg'}));
+        cx2.drawImage(op._bmp, op.x*s, H-(op.y+op.hPt)*s, op.wPt*s, op.hPt*s);
+      }catch(e){ /* skip broken image */ }
+    } else if(op.op==='path'){
+      const P=(x,y)=>[x*s, H-y*s];
+      cx2.beginPath();
+      for(const sg of op.pts){
+        if(sg[0]==='M'){ const q=P(sg[1],sg[2]); cx2.moveTo(q[0],q[1]); }
+        else if(sg[0]==='L'){ const q=P(sg[1],sg[2]); cx2.lineTo(q[0],q[1]); }
+        else { const p1=P(sg[1],sg[2]), p2=P(sg[3],sg[4]), p3=P(sg[5],sg[6]);
+               cx2.bezierCurveTo(p1[0],p1[1],p2[0],p2[1],p3[0],p3[1]); }
+      }
+      if(op.closed) cx2.closePath();
+      const st=op.stroke||{r:0,g:0,b:0,w:1};
+      cx2.strokeStyle='rgb('+[st.r,st.g,st.b].map(v=>Math.round(v*255)).join(',')+')';
+      cx2.lineWidth=Math.max(0.5, st.w*s);
+      cx2.lineJoin='round';
+      cx2.stroke();
+    } else if(op.op==='text'){
+      const g=(op.gray!=null?op.gray:0), v=Math.round(g*255);
+      cx2.fillStyle='rgb('+v+','+v+','+v+')';
+      cx2.font=(op.size*s).toFixed(1)+'px system-ui, sans-serif';
+      cx2.textAlign='left'; cx2.textBaseline='alphabetic';
+      cx2.fillText(op.text, op.x*s, H-op.y*s);
+    }
+  }
 }
 
 /* =========================================================================
@@ -1674,9 +1804,30 @@ function isFramed(){ try{ return window.self !== window.top; }catch(e){ return t
 /* sandboxed preview iframes silently BLOCK every <a download> — even direct user
    clicks — so framed contexts get an in-app save panel instead of a lying toast. */
 let _spUrl=null;
+let _spQueue=[];
 function closeSavePanel(){
   document.getElementById('savePanel').classList.remove('open');
   if(_spUrl){ URL.revokeObjectURL(_spUrl); _spUrl=null; }
+  if(_spQueue.length){
+    const it=_spQueue.shift();
+    setTimeout(()=>{
+      openSavePanel(URL.createObjectURL(it.blob), it.blob, it.name);
+      toast('저장 패널 '+(_spQueue.length+2>0?'다음 파일':'')+' ('+it.name+') — 저장 후 닫으면 이어서 열립니다','ok');
+    }, 350);
+  }
+}
+/* 여러 파일을 ZIP 없이 순차 저장: 프레임=패널 순서, 상단=지연 다운로드 */
+function saveFilesSequential(items){
+  if(!items || !items.length) return;
+  if(isFramed()){
+    _spQueue = items.slice(1);
+    const it=items[0];
+    openSavePanel(URL.createObjectURL(it.blob), it.blob, it.name);
+    toast('저장 패널: 파일 1/'+items.length+' — 저장 후 닫으면 다음 파일이 열립니다','ok');
+  }else{
+    items.forEach((it,i)=> setTimeout(()=>saveFile(it.blob, it.name, true), i*400));
+    toast(items.length+'개 파일을 개별 다운로드합니다 (ZIP 없음)','ok');
+  }
 }
 function openSavePanel(url, blob, name){
   if(_spUrl && _spUrl!==url) URL.revokeObjectURL(_spUrl);
@@ -1745,8 +1896,8 @@ function openSavePanel(url, blob, name){
   body.appendChild(btns);
   document.getElementById('savePanel').classList.add('open');
 }
-function saveFile(blob, name){
-  try{ adExportTick(); }catch(e){}
+function saveFile(blob, name, noTick){
+  if(!noTick){ try{ adExportTick(); }catch(e){} }
   const url=URL.createObjectURL(blob);
   if(isFramed()){ openSavePanel(url, blob, name); return true; }   // framed: panel (downloads blocked)
   const aEl=document.createElement('a'); aEl.href=url; aEl.download=name;
@@ -1865,6 +2016,25 @@ async function buildPdfBlob(){
 async function exportPdf(){
   const btn=$('#exportBtn'); btn.disabled=true;
   try{
+    if(state.exportScope==='list' && drafts.length){
+      // 목록 전체 = 합본 PDF + (옵션) 컷 파일을 개별 저장 — ZIP 없음
+      const keep=snapshotNow('원본');
+      try{
+        const withCut = !!(document.getElementById('bmCut')||{}).checked;
+        const {pdf, name, cutFiles} = await buildImposedPdf(state.machine, 'a4',
+          {mode: state.mode==='cut'?'cut':'mark', orient: state.orient});
+        const framed=saveFile(new Blob([pdf], {type:'application/pdf'}), name);
+        toast(framed ? '저장 패널 열림: '+name+' — 패널에서 저장하세요'
+                     : '합본 PDF 저장 완료: '+name+'  ('+drafts.length+'개 배치 · A4 최소 용지)','ok');
+        if(withCut && cutFiles && cutFiles.length){
+          setTimeout(()=>saveFilesSequential(cutFiles.map(f=>({
+            blob:new Blob([f.data], {type:'application/octet-stream'}), name:f.name}))), 600);
+        }
+      }finally{
+        applyDraft(keep, true); renderDrafts(); updateExportUI();
+      }
+      return;
+    }
     const {pdf, name} = await buildPdfBlob();
     const blob=new Blob([pdf], {type:'application/pdf'});
     const framed=saveFile(blob, name);
@@ -1903,11 +2073,12 @@ function snapshotNow(name){
       layers:d.layers.map(l=>({...l, _ko:undefined, _koKey:undefined}))})),
     thumb: thumbUrl() };
 }
+let _applyQuiet=false;   // suppress DOM sync while an imposed build iterates drafts
 function applyDraft(d, silent){
   if(!d) return;
   state.wrap={...d.wrap};
   state.mode=d.mode; state.machine=d.machine; state.orient=d.orient;
-  state.cutStyle=d.cutStyle; state.mirror=d.mirror; state.paper=d.paper;
+  state.cutStyle=d.cutStyle; state.mirror=d.mirror; state.paper='a4';   // A4 only (drafts may carry legacy letter)
   state.notch=d.notch; state.bg=d.bg; state.copies=d.copies;
   state.copyDesign=[...(d.copyDesign||[0])];
   state.designs = d.designs.map(x=>({id:x.id, name:x.name, ver:0,
@@ -1918,12 +2089,12 @@ function applyDraft(d, silent){
     .filter(i=>activeDesign().layers[i]);
   state.sel = ds.length ? ds : [state.activeLayer];
   _dsgSeq = Math.max(_dsgSeq, ...state.designs.map(x=>parseInt((x.name.match(/\d+/)||['0'])[0])||0));
+  if(_applyQuiet){ if(!silent) toast('임시 저장을 불러왔습니다','ok'); return; }  // data-only (imposed build)
   cropOff();
   setSegActive('#modeSeg', state.mode); setSegActive('#cutSeg', state.cutStyle);
   setSegActive('#markSeg', state.machine); setSegActive('#orientSeg', state.orient);
   $('#cutOpts').style.display = state.mode==='cut' ? '' : 'none';
   $('#markOpts').style.display = state.mode==='mark' ? '' : 'none';
-  $('#paperSel').value = state.paper;
   $('#notchChk').checked = !!state.notch;
   $('#mirrorChk').checked = !!state.mirror;
   $('#bgColor').value = state.bg;
@@ -1941,6 +2112,8 @@ function applyDraft(d, silent){
 function renderDrafts(){
   $('#draftCount').textContent = drafts.length ? '('+drafts.length+')' : '';
   $('#draftExportAll').disabled = !drafts.length;
+  const lb=document.querySelector('#scopeSeg button[data-v="list"]');
+  if(lb) lb.disabled=!drafts.length;
   const ul=$('#draftList');
   if(!drafts.length){ ul.innerHTML=''; return; }
   ul.innerHTML = drafts.map((d,i)=>{
@@ -1965,6 +2138,7 @@ $('#draftList').addEventListener('change', e=>{
   const d=drafts[+li.dataset.i]; if(!d) return;
   d.n=Math.max(1, Math.min(99, Math.round(+inp.value)||1));
   inp.value=d.n;
+  if(state.exportScope==='list') requestImposedPrev();
 });
 $('#draftList').addEventListener('click', async e=>{
   const li=e.target.closest('li'); if(!li || li.dataset.i===undefined) return;
@@ -1972,7 +2146,7 @@ $('#draftList').addEventListener('click', async e=>{
   if(e.target.closest('.ncount')) return;
   const btnEl=e.target.closest('.lbtn');
   const act=btnEl && btnEl.dataset.act;
-  if(act==='del'){ drafts.splice(i,1); renderDrafts(); toast('임시 저장 삭제됨'); return; }
+  if(act==='del'){ drafts.splice(i,1); renderDrafts(); syncScopeUI(); toast('임시 저장 삭제됨'); return; }
   if(act==='load'){ applyDraft(d); return; }
   if(act==='pdf'){
     applyDraft(d, true);
@@ -1989,63 +2163,30 @@ $('#draftSaveBtn').addEventListener('click', ()=>{
   const d=snapshotNow();
   d.n = Math.max(1, Math.min(99, Math.round(+(($('#draftSaveN')||{}).value)||1)));
   drafts.push(d);
-  renderDrafts();
+  renderDrafts(); syncScopeUI();
   toast('목록 추가됨 ('+d.n+'개) — 목록 '+drafts.length+'항목, 「전체 내보내기」로 최소 용지 배치','ok');
 });
-function closeBatchModal(){ document.getElementById('batchModal').classList.remove('open'); }
-function openBatchModal(){
-  if(!drafts.length) return;
-  setSegActive('#bmMachSeg', state.machine);
-  setSegActive('#bmPaperSeg', state.paper);
-  syncBatchRows();
-  document.getElementById('batchModal').classList.add('open');
+async function computeImposedPages(machine, paperKey, opt){
+  _applyQuiet=true;
+  try{
+  return await __computeImposedPages(machine, paperKey, opt);
+  } finally { _applyQuiet=false; }
 }
-function syncBatchRows(){
-  const impose = document.querySelector('#bmModeSeg button.on').dataset.v==='impose';
-  const art = document.querySelector('#bmArtSeg button.on').dataset.v;   // mark | cut
-  document.getElementById('bmArtRow').style.display = impose ? '' : 'none';
-  document.getElementById('bmOrientRow').style.display = impose ? '' : 'none';
-  document.getElementById('bmMachRow').style.display = (impose && art==='mark') ? '' : 'none';
-  document.getElementById('bmPaperRow').style.display = impose ? '' : 'none';
-  document.getElementById('bmCutRow').style.display = impose ? '' : 'none';
-  // 인식 마크 모드는 세로 배치 전용 (페이지 안전영역 폭 한계)
-  const hBtn = document.querySelector('#bmOrientSeg button[data-v="h"]');
-  const vBtn = document.querySelector('#bmOrientSeg button[data-v="v"]');
-  if(art==='mark'){
-    hBtn.disabled = true;
-    hBtn.title = '마크 모드는 세로만 지원합니다 (인쇄 안전영역 폭 한계)';
-    setSegActive('#bmOrientSeg', 'v');
-  }else{
-    hBtn.disabled = false;
-    hBtn.title = '';
-  }
-  const orient = document.querySelector('#bmOrientSeg button.on').dataset.v;
-  document.getElementById('bmHint').textContent = !impose
-    ? '개별: 작업마다(배치 개수만큼) PDF를 만들어 ZIP으로 한 번에 — 마크·용지는 각 작업에 저장된 설정 그대로'
-    : art==='cut'
-      ? '합본(절취선): 모든 작업을 배치 개수만큼 최소 용지에 재배치 + 절취선 인쇄 — 방향 '+(orient==='h'?'가로':'세로')+' · 용지 아래 선택 · 컷 파일(DXF/SVG) 함께 저장 가능'
-      : '합본(마크): 모든 작업을 배치 개수만큼 최소 용지에 재배치 + '+
-        (document.querySelector('#bmMachSeg button.on').dataset.v==='silhouette'?'실루엣':'브라더')+
-        ' 등록 마크 인쇄(세로 전용) · 용지 아래 선택 · 컷 파일(DXF/SVG) 함께 저장 가능';
-}
-segBind('#bmModeSeg', ()=>syncBatchRows());
-segBind('#bmArtSeg', ()=>syncBatchRows());
-segBind('#bmOrientSeg', ()=>syncBatchRows());
-segBind('#bmMachSeg', ()=>syncBatchRows());
-segBind('#bmPaperSeg', ()=>{});
-async function buildImposedPdf(machine, paperKey, opt){
+async function __computeImposedPages(machine, paperKey, opt){
   opt = opt || {};
   const artMode = opt.mode==='cut' ? 'cut' : 'mark';               // 절취선 vs 인식마크
   const orient  = (opt.orient==='h' || opt.orient==='v') ? opt.orient
                   : (artMode==='mark' ? 'v' : 'h');                  // 방향 (마크는 세로 전용)
   const rot = orient==='v';
-  const pg=PAPER[paperKey];
-  // 절취선 모드는 단건 배치(computeLayout)와 동일한 2.5mm 여백을 쓴다 (205mm 가로가 정확히 맞도록)
+  const pg=PAPER[paperKey] || PAPER.a4;
+  // 절취선 모드는 단건 배치(computeLayout)와 동일한 2.5mm 여백 (205mm 가로 정확히 맞음)
   const box = artMode==='cut'
     ? {x:2.5, y:2.5, w:pg.w-5, h:pg.h-5}
     : safeBox('mark', machine, pg);
+  const zones = artMode==='mark' ? markZones(machine, pg) : [];    // 마크 금지 구역
   const gap=3;
   const pages=[]; let cur=[], cy=box.y, cx=box.x;
+  const sizeErr=(d)=>new Error('작업 1개가 안전영역보다 큽니다: '+d.name+' ('+d.wrap.w+'×'+d.wrap.h+'mm'+(rot?' · 세로':' · 가로')+')');
   for(const d of drafts){
     applyDraft(d, true);
     const di=designIdxFor(0);
@@ -2068,10 +2209,11 @@ async function buildImposedPdf(machine, paperKey, opt){
     const or=orient;
     const reps=Math.max(1, Math.min(99, d.n||1)); // per-design batch count
     for(let k=0;k<reps;k++){
-      if(cw>box.w+0.05 || ch>box.h+0.05)
-        throw new Error('작업 1개가 안전영역보다 큽니다: '+d.name+' ('+d.wrap.w+'×'+d.wrap.h+'mm'+(rot?' · 세로':' · 가로')+')');
-      if(cx+cw>box.x+box.w+0.05){ cx=box.x; cy+=ch+gap; }
-      if(cy+ch>box.y+box.h+0.05){ pages.push(cur); cur=[]; cx=box.x; cy=box.y; }
+      if(cw>box.w+0.05 || ch>box.h+0.05) throw sizeErr(d);
+      const spot=resolveCellSpot(box, gap, zones, cw, ch, cx, cy);
+      if(!spot) throw sizeErr(d);
+      if(spot.pages>0){ if(cur.length){ pages.push(cur); cur=[]; } cx=box.x; cy=box.y; }
+      cx=spot.x; cy=spot.y;
       cur.push({bytes, wPx:R.width, hPx:R.height, x:cx, y:cy, wMm:cw, hMm:ch, or,
                 wrap:{w:d.wrap.w, h:d.wrap.h}, notch:d.notch});
       cx+=cw+gap;
@@ -2081,9 +2223,6 @@ async function buildImposedPdf(machine, paperKey, opt){
   if(!pages.length) throw new Error('임시 저장이 없습니다');
   const outPages=pages.map((cells,pi)=>{
     const ops=[];
-    if(artMode==='mark'){
-      for(const mk of markPrims(machine, pg)) primToOps(mk, ops);
-    }
     let uT=1e9, uB=-1e9;
     const pt2=(mm)=>mm2pt(pg.h-mm);
     for(const c of cells){
@@ -2109,19 +2248,22 @@ async function buildImposedPdf(machine, paperKey, opt){
         ops.push({op:'path', pts, closed:true, stroke:{r:col.r, g:col.g, b:col.b, w:st.w}});
       }
     }
-    const ctext=(txt,size,topMm,gray)=>{
+    const ctext=(txt,size,baseMm,gray)=>{
       const wEst=txt.length*size*0.55;
-      ops.push({op:'text', x:Math.max(mm2pt(5), mm2pt(pg.w/2)-wEst/2), y:pt2(topMm),
+      ops.push({op:'text', x:Math.max(mm2pt(5), mm2pt(pg.w/2)-wEst/2), y:pt2(baseMm),
         size, gray, text:txt});
     };
     if(artMode==='cut'){
+      // 캡션은 항상 셀 "아래"에 고정 배치 — 이전의 상단 clamp는 둘 다 y=4mm로
+      // 겹쳐 찍히는 회귀를 만들었다 (레퍼런스 PDF 확인: 헤더/서브헤더 중첩)
       const cwr = cells[0].wrap;
+      const base=Math.min(uB+6, pg.h-17);
       ctext('11oz MUG FULL WRAP  -  '+cells.length+' designs  -  '+cwr.w+' x '+cwr.h+' mm  -  CUT ALONG THE LINE', 8,
-        Math.max(4, uT-11.5), 0.42);
+        base, 0.42);
       ctext('print at 100% scale (no fit-to-page)  -  page '+(pi+1)+'/'+pages.length, 6.5,
-        Math.max(4, uT-6.5), 0.55);
+        base+5.5, 0.55);
       ctext('11oz MUG WRAP TEMPLATE - '+pg.name+' - handle cutouts at both short edges', 6.5,
-        Math.min(pg.h-5, uB+5.5), 0.55);
+        base+11, 0.55);
     }else{
       const nm=machine==='silhouette'?'SILHOUETTE TYPE 1 REGISTRATION MARKS (EXTRACTED)'
                                     :'BROTHER SCANNCUT REGISTRATION MARKS (EXTRACTED)';
@@ -2130,18 +2272,27 @@ async function buildImposedPdf(machine, paperKey, opt){
       ctext('no cut lines printed - print at 100% scale on '+pg.name+' - page '+(pi+1)+'/'+pages.length, 6.5,
         Math.min(pg.h-5.5, uB+12), 0.55);
     }
+    // 등록 마크는 "가장 마지막에" 그린다 — 이미지/캡션이 마크를 덮지 않도록
+    if(artMode==='mark'){
+      for(const mk of markPrims(machine, pg)) primToOps(mk, ops);
+    }
     return {widthPt:mm2pt(pg.w), heightPt:mm2pt(pg.h), ops};
   });
+  return {pages:outPages, cellPages:pages, artMode, orient, pg};
+}
+async function buildImposedPdf(machine, paperKey, opt){
+  const {pages:outPages, cellPages, artMode, orient, pg} =
+    await computeImposedPages(machine, paperKey, opt);
   const pdf=buildPdf(outPages, {title:'11oz Mug Wrap Imposed '+drafts.length+' designs'});
   const name = artMode==='cut'
     ? '11oz-mug-imposed-'+drafts.length+'-cut-'+orient+'-'+paperKey+
-      (pages.length>1?'-x'+pages.length+'p':'')+'.pdf'
+      (cellPages.length>1?'-x'+cellPages.length+'p':'')+'.pdf'
     : '11oz-mug-imposed-'+drafts.length+'-'+machine+'-'+paperKey+
-      (pages.length>1?'-x'+pages.length+'p':'')+'.pdf';
+      (cellPages.length>1?'-x'+cellPages.length+'p':'')+'.pdf';
   // machine cut files matching the imposed cells (per page, 1:1 mm, y-down)
   const enc=new TextEncoder();
   const cutFiles=[];
-  pages.forEach((cells,pi)=>{
+  cellPages.forEach((cells,pi)=>{
     if(!cells.length) return;
     const copies=cells.map(c=>({x:c.x, y:c.y, w:c.wMm, h:c.hMm, or:c.or||'v'}));
     const wraps=cells.map(c=>c.wrap);
@@ -2152,67 +2303,9 @@ async function buildImposedPdf(machine, paperKey, opt){
     cutFiles.push({name:'11oz-cut-'+tag+'.dxf', data:enc.encode(buildDxf(base))});
     cutFiles.push({name:'11oz-cut-'+tag+'.svg', data:enc.encode(buildSvg(base))});
   });
-  return {pdf, name, cutFiles, pageCount:pages.length};
+  return {pdf, name, cutFiles, pageCount:cellPages.length, pages:outPages};
 }
-async function batchZip(){
-  const keep=snapshotNow('원본');
-  try{
-    const files=[]; let total=0;
-    for(let i=0;i<drafts.length;i++){
-      const reps=Math.max(1, Math.min(99, drafts[i].n||1));
-      for(let k=1;k<=reps;k++){
-        applyDraft(drafts[i], true);
-        const {pdf, name} = await buildPdfBlob();
-        const bytes=new Uint8Array(await new Blob([pdf]).arrayBuffer());
-        const tag=reps>1 ? '-c'+k+'of'+reps : '-s'+(i+1);
-        files.push({name:name.replace(/\.pdf$/,'')+tag+'.pdf', data:bytes});
-        total++;
-      }
-    }
-    const zname='11oz-mug-drafts-'+total+'-개-전체.zip';
-    const framed=saveFile(zipStore(files), zname);
-    toast(framed ? '저장 패널 열림: '+zname+' (PDF '+drafts.length+'개 포함) — 패널에서 저장하세요'
-                 : drafts.length+'개 PDF를 ZIP으로 저장: '+zname,'ok');
-  }finally{
-    applyDraft(keep, true); renderDrafts(); updateExportUI();
-  }
-}
-$('#bmGo').addEventListener('click', async ()=>{
-  if(!drafts.length){ closeBatchModal(); return; }
-  const mode=document.querySelector('#bmModeSeg button.on').dataset.v;
-  const machine=document.querySelector('#bmMachSeg button.on').dataset.v;
-  const paperKey=document.querySelector('#bmPaperSeg button.on').dataset.v;
-  const btn=$('#bmGo'); btn.disabled=true;
-  const keep=snapshotNow('원본');
-  try{
-    if(mode==='single'){
-      closeBatchModal();
-      await batchZip();
-    }else{
-      const withCut=!!(document.getElementById('bmCut')||{}).checked;
-      const art=document.querySelector('#bmArtSeg button.on').dataset.v;
-      const orient=document.querySelector('#bmOrientSeg button.on').dataset.v;
-      const {pdf, name, cutFiles} = await buildImposedPdf(machine, paperKey, {mode:art, orient});
-      closeBatchModal();
-      if(withCut && cutFiles && cutFiles.length){
-        const files=[{name, data:new Uint8Array(await new Blob([pdf]).arrayBuffer())}, ...cutFiles];
-        const zname=name.replace(/\.pdf$/,'')+'-with-cuts.zip';
-        const framed=saveFile(zipStore(files), zname);
-        toast(framed ? '저장 패널 열림: '+zname+' (PDF + 컷 파일 '+cutFiles.length+'개)'
-                     : '저장 완료: '+zname+' (PDF + 컷 파일 '+cutFiles.length+'개)','ok');
-      }else{
-        const framed=saveFile(new Blob([pdf],{type:'application/pdf'}), name);
-        toast(framed ? '저장 패널 열림: '+name+' — 패널에서 저장하세요'
-                     : '합본 PDF 저장 완료: '+name+'  ('+drafts.length+'개 배치)','ok');
-      }
-      applyDraft(keep, true); renderDrafts(); updateExportUI();
-    }
-  }catch(err){
-    console.error(err); toast(err.message||'일괄 내보내기 실패','err');
-    applyDraft(keep, true); renderDrafts(); updateExportUI();
-  }finally{ btn.disabled=false; }
-});
-$('#draftExportAll').addEventListener('click', openBatchModal);
+$('#draftExportAll').addEventListener('click', ()=>openPrint('list'));
 renderDrafts();
 
 /* ---- DXF: vector cut outlines for Silhouette Studio / Brother Canvas ---- */

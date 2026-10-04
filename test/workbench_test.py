@@ -153,30 +153,24 @@ async def main():
         en = await page.evaluate("!document.getElementById('draftExportAll').disabled")
         chk('batch export enabled with list', en)
         await page.click('#draftExportAll')
-        await page.wait_for_selector('#batchModal.open')
-        rows = await page.evaluate("[!!document.querySelector('#bmMachRow'), !!document.querySelector('#bmPaperRow')]")
-        chk('batch modal opens with machine + paper rows', rows == [True, True], f'{rows}')
-        await page.click('#bmModeSeg button[data-v="single"]')
-        hid = await page.evaluate("getComputedStyle(document.querySelector('#bmMachRow')).display==='none'")
-        chk('machine row hides for per-draft ZIP mode', hid)
-        await page.click('#bmGo')
-        # batch = ONE zip (multi-download is blocked in preview iframes / prompts top-level)
-        for _ in range(40):
+        await page.wait_for_selector('#printModal.open')
+        rows = await page.evaluate("[document.querySelector('#scopeSeg button.on').dataset.v, document.getElementById('bmCutRow')!==null]")
+        chk('export dialog opens with scope=list + cut row', rows == ['list', True], f'{rows}')
+        await page.wait_for_function("() => !document.getElementById('printModal').classList.contains('busy')", timeout=30000)
+        await page.click('#exportBtn')
+        # list export = ONE imposed PDF (zip removed)
+        for _ in range(60):
             if len(downloads) >= 1:
                 break
             await page.wait_for_timeout(250)
         names = [d.suggested_filename for d in downloads]
-        chk('batch export downloads a single zip', len(downloads) >= 1 and names[0].endswith('.zip'), f'{names}')
-        try:
-            import zipfile as _zf
-            with _zf.ZipFile(await downloads[0].path()) as z:
-                inames = z.namelist()
-        except Exception as e:
-            inames = [f'ERR {e}']
-        chk('zip contains -s1/-s2 pdfs',
-            any(n.endswith('-s1.pdf') for n in inames) and any(n.endswith('-s2.pdf') for n in inames), f'{inames}')
+        chk('list export downloads one imposed PDF (no zip)',
+            len(downloads) >= 1 and 'imposed' in names[0] and names[0].endswith('.pdf'), f'{names}')
+        await page.wait_for_function("() => !document.getElementById('printModal').classList.contains('busy')", timeout=30000)
         restored = await page.evaluate("state.wrap.w")   # 원본 복원
         chk('state restored after batch export', restored == 205, f'w={restored}')
+        await page.click('#printClose')
+        await page.wait_for_timeout(250)
         # per-item delete
         await page.click('#draftList li:first-child button[data-act="del"]')
         await page.wait_for_timeout(200)

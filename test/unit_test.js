@@ -6,10 +6,13 @@ const fs = require('fs');
 const path = require('path');
 
 const pureCode = fs.readFileSync(path.join(__dirname, '..', 'js', 'pure.js'), 'utf8');
-const _api = new Function(pureCode + '\nreturn {Pure, buildDxf, buildSvg, wrapDxfSegs};')();
+const _api = new Function(pureCode + '\nreturn {Pure, buildDxf, buildSvg, wrapDxfSegs, resolveCellSpot, rectsOverlap, markZones};')();
 const Pure = _api.Pure;
 const buildDxf = _api.buildDxf;
 const buildSvg = _api.buildSvg;
+const resolveCellSpot = _api.resolveCellSpot;
+const rectsOverlap = _api.rectsOverlap;
+const markZones = _api.markZones;
 
 let failures = 0, passes = 0;
 function ok(cond, msg) {
@@ -153,6 +156,36 @@ console.log('[buildDxf/buildSvg]');
   const svg2 = buildSvg({copies:[{x:0,y:0,w:87,h:205,or:'v'},{x:95,y:0,w:87,h:205,or:'v'}],
     pageW:210, pageH:297, wrap, notch:false, wraps:[{w:205,h:87},{w:216,h:89}], notches:[false,false]});
   ok((svg2.match(/<path/g)||[]).length===2, 'svg per-copy wraps => 2 paths');
+}
+/* ---------------- resolveCellSpot (imposed packer, overlap regression) -------- */
+{
+  const box = {x:15.9, y:15.9, w:178.2, h:265.2};            // silhouette safe box on A4
+  const zones = markZones('silhouette', {w:210, h:297});
+  const gap = 3, cw = 87, ch = 205;
+  // fresh spot at box origin: TL square zone must push it down, never overlap
+  const s1 = resolveCellSpot(box, gap, zones, cw, ch, box.x, box.y);
+  ok(s1 && s1.pages === 0, 'resolve: first cell lands on same page');
+  const r1 = {x:s1.x, y:s1.y, w:cw, h:ch};
+  ok(zones.every(z => !rectsOverlap(r1, z)), 'resolve: first cell clears ALL mark zones');
+  ok(s1.y > box.y, 'resolve: first cell pushed out of the TL zone');
+  // second column stays in row 1 (no zone conflict) and keeps the gap
+  const s2 = resolveCellSpot(box, gap, zones, cw, ch, s1.x + cw + gap, s1.y);
+  ok(s2 && s2.y === s1.y && s2.x === s1.x + cw + gap, 'resolve: second column in same row');
+  ok(s2.x + cw <= box.x + box.w + 0.05, 'resolve: second column inside box');
+  // next row: push down past zone again if needed, still page 0 when it fits
+  const s3 = resolveCellSpot(box, gap, zones, cw, ch, s2.x + cw + gap, s2.y);
+  ok(s3 && s3.pages === 1, 'resolve: row 2 needs a page break (205mm > remaining)');
+  const r3 = {x:s3.x, y:s3.y, w:cw, h:ch};
+  ok(zones.every(z => !rectsOverlap(r3, z)), 'resolve: post-break cell also zone-clear');
+  // impossible cell → null (never loops forever)
+  const s4 = resolveCellSpot(box, gap, zones, 400, 400, box.x, box.y);
+  ok(s4 === null, 'resolve: oversized cell returns null');
+  // brother: zone at EVERY corner — first row must clear the top corners
+  const bzones = markZones('brother', {w:210, h:297});
+  const bbox = {x:25.4, y:25.4, w:159.2, h:246.2};
+  const b1 = resolveCellSpot(bbox, gap, bzones, 87, 205, bbox.x, bbox.y);
+  ok(b1 && bzones.every(z => !rectsOverlap({x:b1.x, y:b1.y, w:87, h:205}, z)),
+     'resolve: brother cell clears all 4 bullseye zones');
 }
 /* ---------------- summary ---------------- */
 console.log(`\n${passes} passed, ${failures} failed`);

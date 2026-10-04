@@ -33,53 +33,72 @@ def main():
         n2 = p.locator('#draftList .ncount').nth(1).input_value()
         check(n2=='4', 'row count editable (got %s)' % n2)
 
-        # --- 2. impose default (PDF) unchanged ---
-        p.click('#draftExportAll'); p.wait_for_selector('#batchModal.open')
+        # --- 2. unified export dialog: scope=列表 → 합본 PDF (ZIP 없음) ---
+        p.click('#draftExportAll'); p.wait_for_selector('#printModal.open')
+        check(p.evaluate("document.querySelector('#scopeSeg button.on').dataset.v")=='list',
+              '전체 내보내기 → scope=list')
+        p.wait_for_function("!document.getElementById('printModal').classList.contains('busy')", timeout=30000)
         with p.expect_download(timeout=30000) as dl:
-            p.click('#bmGo')
+            p.click('#exportBtn')
         name1 = dl.value.suggested_filename
-        check(name1.endswith('.pdf') and 'imposed' in name1, 'default impose → pdf (%s)' % name1)
+        check(name1.endswith('.pdf') and 'imposed' in name1 and not name1.endswith('.zip'),
+              'list export → imposed pdf, no zip (%s)' % name1)
 
-        # --- 3. cut toggle → ZIP with pdf+dxf+svg, cells = 2+4 = 6 ---
-        p.click('#draftExportAll'); p.wait_for_selector('#batchModal.open')
+        # --- 3. cut files: NO zip — pdf first, then individual dxf/svg downloads ---
+        p.wait_for_function("!document.getElementById('printModal').classList.contains('busy')", timeout=30000)
         p.check('#bmCut')
+        got = []
+        p.on('download', lambda d: got.append(d))
         with p.expect_download(timeout=30000) as dl2:
-            p.click('#bmGo')
-        zname = dl2.value.suggested_filename
-        check(zname.endswith('-with-cuts.zip'), 'cut toggle → zip (%s)' % zname)
-        tmp = tempfile.mkdtemp()
-        zpath = os.path.join(tmp, zname)
-        dl2.value.save_as(zpath)
-        with zipfile.ZipFile(zpath) as z:
-            names = z.namelist()
-            check(any(n.endswith('.pdf') for n in names), 'zip contains pdf: %s' % names)
-            dxfs = [n for n in names if n.endswith('.dxf')]
-            svgs = [n for n in names if n.endswith('.svg')]
-            check(len(dxfs)>=1 and len(svgs)>=1, 'zip contains dxf+svg (%d/%d)' % (len(dxfs), len(svgs)))
-            dxf_txt = z.read(dxfs[0]).decode('utf8', 'ignore')
-            svg_txt = z.read(svgs[0]).decode('utf8', 'ignore')
+            p.click('#exportBtn')
+        first = dl2.value.suggested_filename
+        check(first.endswith('.pdf') and 'imposed' in first, 'cut toggle → pdf still first (%s)' % first)
+        # wait until the download stream goes quiet (cut files arrive ~0.4s apart)
+        prev_n, stable = -1, 0
+        for _ in range(60):
+            if len(got) == prev_n: stable += 1
+            else: stable, prev_n = 0, len(got)
+            if stable >= 5: break
+            p.wait_for_timeout(300)
+        names = [d.suggested_filename for d in got]
+        check(not any(n.endswith('.zip') for n in names), 'no zip anywhere (%s)' % names)
+        dxfs = [d for d in got if d.suggested_filename.endswith('.dxf')]
+        svgs = [d for d in got if d.suggested_filename.endswith('.svg')]
+        check(len(dxfs)>=1 and len(svgs)>=1, 'individual dxf+svg downloaded (%d/%d)' % (len(dxfs), len(svgs)))
+        if dxfs and svgs:
+            tmp = tempfile.mkdtemp()
+            dp = os.path.join(tmp, 'c.dxf'); dxfs[0].save_as(dp)
+            sp = os.path.join(tmp, 'c.svg'); svgs[0].save_as(sp)
+            dxf_txt = open(dp, encoding='utf8', errors='ignore').read()
+            svg_txt = open(sp, encoding='utf8', errors='ignore').read()
             check('LINE' in dxf_txt and 'EOF' in dxf_txt, 'dxf parses as DXF entities')
             check('<path' in svg_txt and 'viewBox' in svg_txt, 'svg has path+viewBox')
-            # 6 cells (2 + 4) packed across pages — sum paths over ALL svgs
-            npath = sum(z.read(n).decode('utf8','ignore').count('<path') for n in svgs)
+            # 6 cells (2 + 4) packed across pages — sum paths over ALL svg downloads
+            npath = sum(d.save_as(os.path.join(tmp, str(i)+'.svg')) or open(os.path.join(tmp, str(i)+'.svg'), encoding='utf8', errors='ignore').read().count('<path')
+                        for i, d in enumerate(svgs))
             check(npath==6, f'all 6 packed cells present across svg pages (got {npath})')
-        shutil.rmtree(tmp, ignore_errors=True)
+            shutil.rmtree(tmp, ignore_errors=True)
+        p.uncheck('#bmCut')
+        p.click('#printClose'); p.wait_for_timeout(250)   # close before next section reopens
 
-        # --- 3b. batch: mode (cut/mark) + orientation options ---
-        p.click('#draftExportAll'); p.wait_for_selector('#batchModal.open')
-        check(p.locator('#bmArtRow').is_visible(), 'batch has 출력 모드 row')
-        check(p.locator('#bmOrientRow').is_visible(), 'batch has 방향 row')
-        # mark mode: horizontal disabled, machine row visible
-        check(p.locator('#bmOrientSeg button[data-v="h"]').is_disabled(), 'mark mode locks orientation to 세로')
-        check(p.locator('#bmMachRow').is_visible(), 'mark mode shows machine row')
+        # --- 3b. unified dialog: mode/orientation options (and A4-only) ---
+        p.click('#draftExportAll'); p.wait_for_selector('#printModal.open')
+        check(p.locator('#paperSel').count()==0, 'letter select removed (A4 only)')
+        check(p.locator('#scopeSeg').is_visible(), 'export has 범위 row')
+        # mark mode: horizontal disabled, machine visible
+        p.click('#modeSeg button[data-v="mark"]'); p.wait_for_timeout(150)
+        p.wait_for_function("!document.getElementById('printModal').classList.contains('busy')", timeout=30000)
+        check(p.locator('#orientSeg button[data-v="h"]').is_disabled(), 'mark mode locks orientation to 세로')
+        check(p.locator('#markOpts').is_visible(), 'mark mode shows machine row')
         # cut mode: horizontal enabled, machine hidden, export → cut filename
-        p.click('#bmArtSeg button[data-v="cut"]'); p.wait_for_timeout(150)
-        check(not p.locator('#bmOrientSeg button[data-v="h"]').is_disabled(), 'cut mode enables 가로')
-        check(p.locator('#bmMachRow').is_hidden(), 'cut mode hides machine row')
-        p.click('#bmOrientSeg button[data-v="h"]'); p.wait_for_timeout(100)
-        p.uncheck('#bmCut')   # isolate the plain-PDF path (zip path covered above)
+        p.click('#modeSeg button[data-v="cut"]'); p.wait_for_timeout(150)
+        p.wait_for_function("!document.getElementById('printModal').classList.contains('busy')", timeout=30000)
+        check(not p.locator('#orientSeg button[data-v="h"]').is_disabled(), 'cut mode enables 가로')
+        check(p.locator('#markOpts').is_hidden(), 'cut mode hides machine row')
+        p.click('#orientSeg button[data-v="h"]'); p.wait_for_timeout(150)
+        p.wait_for_function("!document.getElementById('printModal').classList.contains('busy')", timeout=30000)
         with p.expect_download(timeout=30000) as dl3:
-            p.click('#bmGo')
+            p.click('#exportBtn')
         cn = dl3.value.suggested_filename
         check(cn.endswith('.pdf') and '-cut-h-' in cn, 'cut+horizontal batch pdf (%s)' % cn)
         import tempfile as _tf, shutil as _sh
@@ -88,10 +107,12 @@ def main():
             import pypdfium2 as pdfium
             doc=pdfium.PdfDocument(_cp)
             txt=doc[0].get_textpage().get_text_range() if hasattr(doc[0],'get_textpage') else ''
-            check('CUT ALONG THE LINE' in txt, 'cut-mode page prints cut caption (got %r)' % txt[:60])
+            check('CUT ALONG THE LINE' in txt and txt.count('CUT ALONG THE LINE')==1,
+                  'cut-mode page prints caption exactly once (got %d)' % txt.count('CUT ALONG THE LINE'))
             _sh.rmtree(_td, ignore_errors=True)
         except ImportError:
             pass
+        p.click('#printClose'); p.wait_for_timeout(250)   # close dialog before sidebar clicks
         # --- 4. support buttons (3 donate + 1 donor-code) ---
         btns = p.locator('#supportRow > *').count()
         check(btns==4, 'support row renders 4 buttons (got %d)' % btns)
