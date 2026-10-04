@@ -10,6 +10,12 @@
 (function () {
   'use strict';
   const D = {
+    '소개':                        { ja: '紹介', en: 'About' },
+    '문의':                        { ja: 'お問い合わせ', en: 'Contact' },
+    '개인정보처리방침':            { ja: 'プライバシーポリシー', en: 'Privacy Policy' },
+    '높이 맞추기 (랩 높이)':        { ja: '高さを合わせる（ラップ高）', en: 'Fit height (wrap height)' },
+    '뒤로 보내기':                  { ja: '背面へ移動', en: 'Send backward' },
+    '맨 뒤로 보내기':               { ja: '最背面へ移動', en: 'Send to back' },
     /* ---- header ---- */
     '11oz 머그컵':            { ja: '11oz マグカップ', en: '11oz Mug' },
     '템플릿 메이커':          { ja: 'テンプレートメーカー', en: 'Template Maker' },

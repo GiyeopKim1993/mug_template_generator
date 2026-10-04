@@ -104,7 +104,7 @@ function toast(msg, kind){
 }
 
 /* ---------- wrap texture (flat artwork) ---------- */
-const BUILD_V = 'v4.17';                      // single source of truth (footer + stage chip)
+const BUILD_V = 'v4.18';                      // single source of truth (footer + stage chip)
 /* 운영 설정은 js/config.js (관리 페이지가 수정하는 파일)에서 관리합니다. */
 const MT_CFG_DEFAULT = {
   version:1,
@@ -890,14 +890,30 @@ function drawEditor(){
 }
 
 function e2mm(px,py){ return [(px-edBox.ox)/edBox.s, (py-edBox.oy)/edBox.s]; }
-function imgHit(mx,my){
-  const im=state.img; if(!im) return false;
+function layerHit(im,mx,my){
+  if(!im || !im.bmp) return false;
   const aspect=im.bmp.height/im.bmp.width;
   const a=(im.rot)*Math.PI/180, ca=Math.cos(-a), sa=Math.sin(-a);
   const dx=mx-im.cx, dy=my-im.cy;
   const lx=dx*ca-dy*sa, ly=dx*sa+dy*ca;
   const hw=im.w/2, hh=(im.w*aspect)/2;
   return Math.abs(lx)<=hw && Math.abs(ly)<=hh;
+}
+function imgHit(mx,my){ return layerHit(state.img, mx, my); }
+/* topmost visible layer under (mm) point — array end = front */
+function pickTopLayer(mx,my){
+  const dsg=activeDesign(); if(!dsg) return -1;
+  for(let i=dsg.layers.length-1; i>=0; i--){
+    const L=dsg.layers[i];
+    if(!L.visible || !L.bmp) continue;
+    if(layerHit(L,mx,my)) return i;
+  }
+  return -1;
+}
+function focusLayer(i){
+  if(i<0 || i===state.activeLayer) return;
+  state.activeLayer=i; state.sel=[i];
+  syncActive(); renderLayers(); syncControls();
 }
 function handleScreenPos(){
   const im=state.img; if(!im) return null;
@@ -931,12 +947,49 @@ ed.addEventListener('pointerdown', e=>{
       edLock=true;
       ed.setPointerCapture(e.pointerId); return;
     }
-    if(imgHit(mx,my)){
+    const pick = pickTopLayer(mx,my);            // click focuses FRONT-most image
+    if(pick>=0) focusLayer(pick);
+    if(state.img && imgHit(mx,my)){
       dragImg={dx:mx-state.img.cx, dy:my-state.img.cy};
       edLock=true;
       ed.setPointerCapture(e.pointerId); return;
     }
   }
+});
+/* ---- right-click: z-order context menu ---- */
+function hideCtx(){ const m=document.getElementById('ctxMenu'); if(m) m.hidden=true; }
+ed.addEventListener('contextmenu', e=>{
+  e.preventDefault();
+  const m=document.getElementById('ctxMenu'); if(!m) return;
+  const rect=ed.getBoundingClientRect();
+  const [mx,my]=e2mm((e.clientX-rect.left)*dpr,(e.clientY-rect.top)*dpr);
+  const pick=pickTopLayer(mx,my);
+  if(pick<0){ hideCtx(); return; }
+  focusLayer(pick);
+  m.hidden=false;
+  const mw=m.offsetWidth||170, mh=m.offsetHeight||80;
+  m.style.left=Math.min(e.clientX, innerWidth-mw-8)+'px';
+  m.style.top=Math.min(e.clientY, innerHeight-mh-8)+'px';
+  e.stopPropagation();
+});
+document.addEventListener('click', hideCtx);
+document.addEventListener('pointerdown', (e)=>{ if(e.target && e.target.closest && e.target.closest('#ctxMenu')) return; hideCtx(); }, true);
+document.addEventListener('keydown', e=>{ if(e.key==='Escape') hideCtx(); });
+document.getElementById('ctxMenu').addEventListener('click', e=>{
+  const b=e.target.closest('button'); if(!b) return;
+  const dsg=activeDesign(); const i=state.activeLayer;
+  const L=dsg && dsg.layers[i]; if(!L) return;
+  if(b.dataset.act==='back' && i>0){                 // one step toward the back
+    dsg.layers[i]=dsg.layers[i-1]; dsg.layers[i-1]=L;
+    if(state.activeLayer===i) state.activeLayer=i-1;
+    state.sel=state.sel.map(x=> x===i ? i-1 : x);
+  } else if(b.dataset.act==='toback' && i>0){        // all the way to the back
+    dsg.layers.splice(i,1); dsg.layers.unshift(L);
+    const oldSel=state.sel;
+    state.activeLayer = 0;
+    state.sel=Array.from(new Set(oldSel.map(x=> x===i ? 0 : (x>i ? x : x+1))));
+  } else { hideCtx(); return; }
+  renderLayers(); scheduleDraws(); syncControls(); hideCtx();
 });
 ed.addEventListener('pointermove', e=>{
   const rect=ed.getBoundingClientRect();
@@ -2289,6 +2342,10 @@ async function buildImposedPdf(machine, paperKey, opt){
     const tag=(artMode==='cut' ? 'cut-'+orient : machine)+'-p'+(pi+1);
     cutFiles.push({name:'11oz-cut-'+tag+'.dxf', data:enc.encode(buildDxf(base))});
     cutFiles.push({name:'11oz-cut-'+tag+'.svg', data:enc.encode(buildSvg(base))});
+    if(state.machine!=='silhouette'){                 // Brother native (.fcm) — open-fcm MIT
+      try{ cutFiles.push({name:'11oz-cut-'+tag+'.fcm', data:buildFcm({...base, pageW:pg.w, pageH:pg.h, name:tag})}); }
+      catch(e){ console.warn('fcm build failed', e); }
+    }
   });
   return {pdf, name, cutFiles, pageCount:cellPages.length, pages:outPages};
 }
@@ -2315,6 +2372,17 @@ function exportDxf(){
   }
 }
 $('#dxfBtn').addEventListener('click', exportDxf);
+/* fit selected image height to the wrap (template) height — aspect kept */
+$('#hfitBtn').addEventListener('click', ()=>{
+  const im=state.img;
+  if(!im || !im.bmp){ toast('먼저 이미지를 선택하세요','err'); return; }
+  const aspect=im.bmp.height/im.bmp.width;
+  if(!(aspect>0)) return;
+  im.w = Math.round((state.wrap.h / aspect) * 10) / 10;      // height -> wrap.h, no stretch
+  if(window.syncControls) syncControls();
+  renderLayers(); scheduleDraws();
+  toast('높이를 랩 높이('+state.wrap.h+'mm)에 맞췄습니다','ok');
+});
 
 /* ---------- 후원 버튼 + 광고 트리거 (R5) ----------
    SUPPORT/AD 설정은 파일 상단 주석 참조. 계정 생성은 직접(설명 참조):

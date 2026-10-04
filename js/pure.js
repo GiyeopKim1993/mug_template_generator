@@ -518,6 +518,91 @@ function buildDxf(args){
 }
 /* SVG cut outlines (mm, top-left origin, y-down) — imports cleanly into
    Brother CanvasWorkspace (SVG) and Silhouette Studio. Same inputs as buildDxf. */
+/* ---- FCM (Brother ScanNCut native) — via open-fcm (MIT). Units: 0.01 mm.
+   Input mirrors buildSvg: {copies, wrap, notch, wraps, notches, pageW, pageH, name} ---- */
+function buildFcm(args){
+  if(typeof FCMLib === 'undefined') throw new Error('FCMLib not loaded');
+  const U = (v)=>Math.round(v*100);                      // mm -> 0.01mm
+  const normA = (a)=> ((a % (2*Math.PI)) + 2*Math.PI) % (2*Math.PI);
+  const pieces = [];
+  for(let i=0; i<args.copies.length; i++){
+    const r = args.copies[i];
+    const wr = (args.wraps && args.wraps[i]) || args.wrap;
+    const nt = (args.notches && args.notches[i] !== undefined) ? args.notches[i] : args.notch;
+    const src = wrapDxfSegs(wr.w, wr.h, nt);
+    const T = (r.or==='v') ? (x,y)=>[r.x + y, r.y + r.h - x]
+                           : (x,y)=>[r.x + x, r.y + y];
+    const cxU = U(r.x + r.w/2), cyU = U(r.y + r.h/2);
+    const loc = (x,y)=>{ const q=T(x,y); return {x:q[0]*100 - cxU, y:q[1]*100 - cyU}; };  // float local
+    // contiguous chains (gap -> new path; no cross-cutting connector lines)
+    const chains = []; let ch=null, cur=null;
+    const near = (a,b)=> a && b && Math.abs(a.x-b.x)<2 && Math.abs(a.y-b.y)<2;   // 0.02mm
+    for(const sg of src){
+      if(sg.t==='L'){
+        const a=loc(sg.x0,sg.y0), b=loc(sg.x1,sg.y1);
+        if(!cur || !near(cur,a)){ ch={start:a, segs:[]}; chains.push(ch); }
+        ch.segs.push({t:'L', p:b}); cur=b;
+      } else {
+        const p0=loc(sg.x0,sg.y0), pm=loc(sg.xm,sg.ym), p1=loc(sg.x1,sg.y1), C=loc(sg.cx,sg.cy);
+        if(!cur || !near(cur,p0)){ ch={start:p0, segs:[]}; chains.push(ch); }
+        const ang=(q)=>Math.atan2(q.y-C.y, q.x-C.x);
+        const a0=ang(p0), am=ang(pm), a1=ang(p1);
+        const ccw = normA(a1-a0);
+        const delta = (normA(am-a0) <= ccw + 1e-9) ? ccw : ccw - 2*Math.PI;
+        const n = Math.max(1, Math.ceil(Math.abs(delta)/(Math.PI/2) - 1e-9));
+        let th = a0;
+        for(let k=1; k<=n; k++){
+          const thE = a0 + delta*k/n;
+          const kf = (4/3)*Math.tan((thE-th)/4);
+          const Ps = (k===1) ? p0 : {x:C.x+sg.r*100*Math.cos(th), y:C.y+sg.r*100*Math.sin(th)};
+          const Pe = (k===n) ? p1 : {x:C.x+sg.r*100*Math.cos(thE), y:C.y+sg.r*100*Math.sin(thE)};
+          const dS = {x:-sg.r*100*Math.sin(th),   y: sg.r*100*Math.cos(th)};
+          const dE = {x:-sg.r*100*Math.sin(thE),  y: sg.r*100*Math.cos(thE)};
+          ch.segs.push({t:'B', c1:{x:Ps.x+kf*dS.x, y:Ps.y+kf*dS.y}, c2:{x:Pe.x-kf*dE.x, y:Pe.y-kf*dE.y}, p:Pe});
+          th = thE;
+        }
+        cur = p1;
+      }
+    }
+    // emit paths: split into homogeneous Line/Bezier outlines
+    const rnd=(q)=>({x:Math.round(q.x), y:Math.round(q.y)});
+    const paths = [];
+    for(const c of chains){
+      if(!c.segs.length) continue;
+      const startP = rnd(c.start);
+      const endP = rnd(c.segs[c.segs.length-1].p);
+      const closed = Math.abs(startP.x-endP.x)<=1 && Math.abs(startP.y-endP.y)<=1;
+      const outlines = [];
+      let run = null;
+      const flush = ()=>{ if(run){ outlines.push(run); run = null; } };
+      for(const s of c.segs){
+        if(s.t==='L'){
+          if(!run || run.type!=='Line'){ flush(); run={type:'Line', segments:[]}; }
+          run.segments.push({end:rnd(s.p)});
+        } else {
+          if(!run || run.type!=='Bezier'){ flush(); run={type:'Bezier', segments:[]}; }
+          run.segments.push({control1:rnd(s.c1), control2:rnd(s.c2), end:rnd(s.p)});
+        }
+      }
+      flush();
+      paths.push({ tool: closed ? 0x0002 : 0x0003,   // TOOL_CUT (+ PATH_OPEN when not closed)
+                   shape:{ start:startP, outlines },
+                   rhinestone_diameter:null, rhinestones:[] });
+    }
+    pieces.push({ width:U(r.w), height:U(r.h), transform:[1,0,0,1,cxU,cyU],
+                  expansion_limit_value:0, reduction_limit_value:0, restriction_flags:0,
+                  label:'', paths });
+  }
+  return FCMLib.writeFcmFile({
+    file_header:{ variant:'FCM', version:'0100', content_id:0, short_name:'',
+      long_name:String(args.name || '11oz wrap').slice(0,80), author_name:'', copyright:'',
+      thumbnail_block_size_width:3, thumbnail_block_size_height:3,
+      thumbnail:FCMLib.generateBlankThumbnail(), generator:{type:'App', version:1}, print_to_cut:null },
+    cut_data:{ file_type:'Cut', mat_id:0, cut_width:U(args.pageW), cut_height:U(args.pageH),
+               seam_allowance_width:0, alignment:null },
+    piece_table:{ pieces: pieces.map((pc,i)=>({id:i, piece:pc})) }
+  });
+}
 function buildSvg(args){
   const copies = args.copies;
   const wrap = args.wrap, notch = args.notch;
