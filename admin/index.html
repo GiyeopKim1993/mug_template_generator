@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>머그 템플릿 · 관리 페이지</title>
+<style>
+  :root{--bg:#12151c;--panel:#1a1f2a;--panel2:#212836;--line:#2e3648;--txt:#e8ecf4;--sub:#9aa4b8;--acc:#5b8cff;--acc2:#3dd6c3;--ok:#4ade80;--err:#ff6b7a;--warn:#ffb454}
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--txt);font:14px/1.55 system-ui,-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif}
+  header{padding:18px 22px 6px;display:flex;align-items:baseline;gap:12px;flex-wrap:wrap}
+  header h1{font-size:18px;margin:0}
+  header .sub{color:var(--sub);font-size:12.5px}
+  main{max-width:880px;margin:0 auto;padding:10px 18px 60px;display:flex;flex-direction:column;gap:14px}
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px 18px}
+  .card h2{font-size:13px;margin:0 0 12px;color:var(--sub);letter-spacing:.4px;text-transform:none}
+  .row{display:flex;gap:10px;align-items:center;margin:9px 0;flex-wrap:wrap}
+  .row label.lbl{min-width:150px;color:var(--sub);font-size:13px}
+  input[type=text],input[type=number],textarea{background:var(--panel2);border:1px solid var(--line);color:var(--txt);border-radius:8px;padding:8px 10px;font:inherit}
+  input[type=text]{flex:1;min-width:220px}
+  input[type=number]{width:80px}
+  textarea{width:100%;min-height:110px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:12.5px}
+  .btn{appearance:none;border:1px solid var(--line);background:var(--panel2);color:var(--txt);padding:8px 16px;border-radius:9px;font:inherit;cursor:pointer;font-weight:600}
+  .btn:hover{border-color:var(--acc)}
+  .btn.primary{background:linear-gradient(135deg,var(--acc),#7a5bff);border:none;color:#fff}
+  .btn.danger{border-color:rgba(255,107,122,.5);color:#ff9aa6}
+  .btn.small{padding:4px 10px;font-size:12.5px;font-weight:500}
+  .chk{display:inline-flex;gap:8px;align-items:center;cursor:pointer}
+  .chk input{accent-color:var(--acc);width:16px;height:16px}
+  .hint{color:var(--sub);font-size:12.5px;margin-top:8px;line-height:1.6}
+  .codes{display:flex;flex-direction:column;gap:6px;margin-top:10px}
+  .code{display:flex;justify-content:space-between;align-items:center;background:var(--panel2);border:1px solid var(--line);border-radius:8px;padding:7px 12px;font-family:ui-monospace,monospace;font-size:12.5px}
+  .code .h{color:var(--sub)}
+  .gen-out{background:#0d1020;border:1px dashed var(--acc2);border-radius:10px;padding:12px;margin-top:10px;display:none}
+  .gen-out b{color:var(--acc2);font-size:16px;letter-spacing:1px}
+  #toast{position:fixed;left:50%;bottom:26px;transform:translateX(-50%);background:#10141f;border:1px solid var(--line);color:var(--txt);padding:10px 18px;border-radius:10px;opacity:0;pointer-events:none;transition:.2s;z-index:9}
+  #toast.show{opacity:1}
+  code,pre{background:#0d1020;border:1px solid var(--line);border-radius:6px;padding:2px 6px;font-size:12.5px}
+  pre{padding:10px 12px;overflow:auto}
+  .foot{color:var(--sub);font-size:12px;text-align:center;margin-top:6px}
+</style>
+</head>
+<body>
+<header>
+  <h1>⚙️ 머그 템플릿 관리 페이지</h1>
+  <span class="sub">저장 대상: <code>js/config.js</code> · 반영은 git push 후</span>
+</header>
+<main>
+  <div class="card">
+    <h2>💜 후원 링크 (사이트 푸터 버튼)</h2>
+    <div class="row"><label class="lbl">토스 후원 링크</label><input type="text" id="toss" placeholder="toss.me/내아이디"></div>
+    <div class="row"><label class="lbl">카카오페이 QR/링크</label><input type="text" id="kakao" placeholder="qr.kakaopay.com/xxxx"></div>
+    <div class="row"><label class="lbl">Buy Me a Coffee</label><input type="text" id="bmc" placeholder="buymeacoffee.com/내이름"></div>
+  </div>
+
+  <div class="card">
+    <h2>📢 광고 슬롯</h2>
+    <div class="row">
+      <label class="chk"><input type="checkbox" id="adOn"><span>광고 활성화 (AD.enabled)</span></label>
+      <span class="hint">애드센스/애드핏 스니펫(&lt;script&gt;…)을 아래에 붙여넣고 체크</span>
+    </div>
+    <textarea id="adHtml" placeholder="예) &lt;script async src=&quot;https://pagead2.googlesyndication.com/...&quot;&gt;&lt;/script&gt; ..."></textarea>
+    <div class="hint">미리보기 테스트는 사이트 주소 뒤에 <code>?ad=1</code> — 실제 광고 스크립트는 배포 주소(https)에서만 동작합니다.</div>
+  </div>
+
+  <div class="card">
+    <h2>🎯 트리거 (언제 광고를 보여줄지)</h2>
+    <div class="row">
+      <label class="chk"><input type="checkbox" id="trExpOn"><span>내보내기 트리거 ON</span></label>
+      <label>매 <input type="number" id="trExpEvery" min="1" max="99"> 회마다</label>
+    </div>
+    <div class="row">
+      <label class="chk"><input type="checkbox" id="trDsgOn"><span>디자인 개수 트리거 ON</span></label>
+      <label><input type="number" id="trDsgMin" min="2" max="99">개 이상</label>
+    </div>
+    <div class="row">
+      <label class="chk"><input type="checkbox" id="closeMutes"><span>광고 ✕ 닫기 = 해당 트리거 해제 (사용자가 끄면 더 이상 안 뜲음)</span></label>
+    </div>
+    <div class="hint">쿨다운은 트리거마다 24시간. 아래 <b>설정 저장</b>에서 version을 올리면 해제·쿨다운 상태가 초기화되어 다시 뜹니다.</div>
+  </div>
+
+  <div class="card">
+    <h2>🔑 후원자 코드 (광고 없이 트리거 해제)</h2>
+    <div class="row">
+      <button class="btn" id="genBtn">새 코드 발급</button>
+      <span class="hint">발급 즉시 config의 해시 목록에 저장 — 코드 원문은 지금 한 번만 표시됩니다</span>
+    </div>
+    <div class="gen-out" id="genOut">
+      발급된 코드 (지금 바로 복사·전달): <b id="genCode"></b>
+      <button class="btn small" id="copyBtn">복사</button>
+    </div>
+    <div class="codes" id="codeList"></div>
+    <div class="hint">후원자: 사이트 푸터의 <b>🔓 후원자 코드</b> 버튼에 입력 → 광고 트리거 영구 해제. SHA-256 해시만 저장되므로 원문 유출 위험이 없습니다. 해제(삭제)하려면 목록에서 X.</div>
+  </div>
+
+  <div class="card">
+    <h2>💾 저장 & 반영</h2>
+    <button class="btn primary" id="saveBtn">config.js에 저장</button>
+    <div class="hint">저장 후 GitHub에 반영:</div>
+    <pre>git add js/config.js && git commit -m "chore: update config" && git push</pre>
+    <div class="hint">version 자동 증가 버튼 (트리거 해제 상태 전체 리셋): <button class="btn small" id="verBtn">version +1</button> <span id="verNow"></span></div>
+  </div>
+
+  <div class="foot">zero-dependency · <code>node admin/server.js</code> · Codespace 포트 3789 포워딩</div>
+</main>
+<div id="toast"></div>
+<script>
+let CFG=null;
+const $=s=>document.querySelector(s);
+function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('show');clearTimeout(t._x);t._x=setTimeout(()=>t.classList.remove('show'),2200);}
+async function api(p,opt){const r=await fetch(p,opt);const j=await r.json();if(!r.ok)throw new Error(j.error||r.status);return j;}
+function fill(c){
+  CFG=c;
+  $('#toss').value=c.support?.toss||''; $('#kakao').value=c.support?.kakao||''; $('#bmc').value=c.support?.bmc||'';
+  $('#adOn').checked=!!c.ad?.enabled; $('#adHtml').value=c.ad?.html||'';
+  $('#trExpOn').checked=c.triggers?.export?.on!==false; $('#trExpEvery').value=c.triggers?.export?.every||3;
+  $('#trDsgOn').checked=c.triggers?.designs?.on!==false; $('#trDsgMin').value=c.triggers?.designs?.min||5;
+  $('#closeMutes').checked=c.adCloseMutes!==false;
+  $('#verNow').textContent='(현재 v'+(c.version||1)+')';
+  renderCodes();
+}
+function renderCodes(){
+  const list=CFG.donorHashes||[];
+  $('#codeList').innerHTML=list.length? list.map(h=>
+    '<div class="code"><span class="h">sha256:'+h.slice(0,16)+'…'+h.slice(-6)+'</span>'+
+    '<button class="btn small danger" data-h="'+h+'">삭제</button></div>').join('')
+    : '<div class="hint">발급된 코드 없음</div>';
+  $('#codeList').querySelectorAll('button[data-h]').forEach(b=>b.onclick=async()=>{
+    const j=await api('/api/donors/revoke',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({hash:b.dataset.h})});
+    fill(j.config); toast('코드 해제됨');
+  });
+}
+function gather(){
+  return {
+    version: CFG.version||1,
+    support:{ toss:$('#toss').value.trim(), kakao:$('#kakao').value.trim(), bmc:$('#bmc').value.trim() },
+    ad:{ enabled:$('#adOn').checked, html:$('#adHtml').value },
+    triggers:{
+      export:{ on:$('#trExpOn').checked, every:Math.max(1,+$('#trExpEvery').value||3) },
+      designs:{ on:$('#trDsgOn').checked, min:Math.max(2,+$('#trDsgMin').value||5) }
+    },
+    adCloseMutes:$('#closeMutes').checked,
+    donorHashes:(CFG.donorHashes||[]).slice()
+  };
+}
+$('#saveBtn').onclick=async()=>{ try{
+  const j=await api('/api/config',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(gather())});
+  fill(j.config); toast('저장됨 ✓ — git push로 사이트에 반영');
+}catch(e){toast('오류: '+e.message);} };
+$('#verBtn').onclick=()=>{ CFG.version=(CFG.version||1)+1; $('#verNow').textContent='(현재 v'+CFG.version+') (미저장)'; toast('version 올림 — 저장 버튼을 누르세요'); };
+$('#genBtn').onclick=async()=>{ try{
+  const j=await api('/api/donors',{method:'POST',headers:{'Content-Type':'application/json'},body:'{}'});
+  fill(j.config);
+  $('#genCode').textContent=j.code; $('#genOut').style.display='block';
+  toast('코드 발급됨 — config.js에 해시 저장 완료');
+}catch(e){toast('오류: '+e.message);} };
+$('#copyBtn').onclick=()=>{ navigator.clipboard.writeText($('#genCode').textContent).then(()=>toast('복사됨')); };
+api('/api/config').then(fill).catch(e=>toast('config 로드 실패: '+e.message));
+</script>
+</body>
+</html>
