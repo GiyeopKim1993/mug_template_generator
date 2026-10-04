@@ -21,17 +21,16 @@
 
 ## 3. 개선 로드맵 (각 단계 = 전체 테스트 통과가 게이트)
 
-### S3-a: `computeImposedPages` 상태 해방 (A3 근원 제거) ← 다음 작업
-- 현재: 작업마다 `applyDraft`로 전역 상태를 덮고 snapshot 복원.
-- 목표: **함수 인자로 드래프트를 그리는 순수 렌더** `composeDraft(d) → canvas` — 전역 상태 0회 변이.
-- 흑단: `composeArtFlat`이 `state`/`layers`에 의존 → 임시 state 객체 주입 방식으로 분리.
-- 게이트: r5·savepanel·paths·workbench 무변화, `_applyQuiet`/snapshot dance **삭제 가능**해짐.
+### ✅ S3-a: `computeImposedPages` 상태 해방 — 완료 (2026-10-04)
+- `drawArtwork`/`composeArtFlat`/`designIdxFor`에 **선택 `env` 인자** 도입 (`E = env || state` → 미전달 시 동작 불변).
+- compute 루프 = `draftEnv(d)`로 렌더 → **`applyDraft`·state 변이 0회**.
+- 삭제: `_applyQuiet` 전역 플래그, quiet 래퍼, `buildImposedPrev`/`exportPdf` list의 snapshotNow 복원 dance 2곳.
+- 게이트: unit 38/38 · r5 · savepanel · e2e · workbench · paths · interact PASS.
 
-### S3-b: 단일 export 서비스 (A4/A5 완결)
-- `exportPdf`(단건) / `buildImposedPdf`(일괄) / `buildImposedPrev`(미리보기)를 **한 파이프라인**으로:
-  `composeDrafts(drafts) → cells → [buildPdf | preview bits]`.
-- 미리보기와 PDF는 같은 `pages` 캐시를 공유 (`imposedKey()` 1개).
-- 게이트: 참고 PDF 3장 대비 겹침 0 검증 유지 (기하 스크립트), e2e·r5·savepanel.
+### ✅ S3-b: 미리보기↔내보내기 단일 결과 — 완료 (2026-10-04)
+- `_imp.result`가 compute 결과 전체를 캐시 → `buildImposedPdf`는 키 일치 시 **그대로 재사용**(재계산 0, 미리보기와 바이트 동일 보장).
+- 부정 캐시·스코프 전환 시 캐시 클리어 포함.
+- 게이트: 전체 15종 회귀 ALL GREEN.
 
 ### S4: 결합 해소 (A1/A2/A7)
 - `js/export.js`(파이프라인) / `js/store.js`(상태+구독) 로 분리 — app.js는 UI 바인딩만.

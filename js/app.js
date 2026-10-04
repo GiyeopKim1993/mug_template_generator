@@ -104,7 +104,7 @@ function toast(msg, kind){
 }
 
 /* ---------- wrap texture (flat artwork) ---------- */
-const BUILD_V = 'v4.14';                      // single source of truth (footer + stage chip)
+const BUILD_V = 'v4.15';                      // single source of truth (footer + stage chip)
 /* 운영 설정은 js/config.js (관리 페이지가 수정하는 파일)에서 관리합니다. */
 const MT_CFG_DEFAULT = {
   version:1,
@@ -120,13 +120,14 @@ const AD = CFG.ad || MT_CFG_DEFAULT.ad;
 document.addEventListener('DOMContentLoaded', ()=>{ const t=document.getElementById('buildTag'); if(t) t.textContent='빌드 '+BUILD_V; });
 if(document.getElementById('buildTag')) document.getElementById('buildTag').textContent='빌드 '+BUILD_V;
 const tex = document.createElement('canvas');
-function drawArtwork(ctx, W, H, ppm, mirror, designIdx){
+function drawArtwork(ctx, W, H, ppm, mirror, designIdx, env){
+  const E = env || state;                          // S3a: pass a draft env for state-free rendering
   ctx.save();
   if(mirror){ ctx.translate(W,0); ctx.scale(-1,1); }
-  ctx.fillStyle = state.bg;
+  ctx.fillStyle = E.bg;
   ctx.fillRect(0,0,W,H);
-  const di = (designIdx===undefined || designIdx===null) ? state.activeDesign : designIdx;
-  const dsn = state.designs[di];
+  const di = (designIdx===undefined || designIdx===null) ? E.activeDesign : designIdx;
+  const dsn = E.designs[di];
   if(dsn){
     for(const im of dsn.layers){          // bottom -> top (stack order)
       if(!im.visible) continue;
@@ -142,9 +143,9 @@ function drawArtwork(ctx, W, H, ppm, mirror, designIdx){
   }
   ctx.restore();
   // punch handle notches (real template shape): transparent bites at both short edges
-  if(state.notch){
-    const ppm = W / state.wrap.w;
-    const {r, y1, y2} = notchGeom(state.wrap.w, state.wrap.h);
+  if(E.notch){
+    const ppm = W / E.wrap.w;
+    const {r, y1, y2} = notchGeom(E.wrap.w, E.wrap.h);
     ctx.save();
     ctx.globalCompositeOperation = 'destination-out';
     ctx.beginPath();
@@ -1371,10 +1372,18 @@ $('#alignSeg').addEventListener('click', e=>{
   }
   scheduleDraws();
 });
-function designIdxFor(ci){
-  const di = state.copyDesign[ci];
-  if(di==null || di<0 || di>=state.designs.length) return 0;
+function designIdxFor(ci, env){
+  const E = env || state;
+  const di = E.copyDesign[ci];
+  if(di==null || di<0 || di>=E.designs.length) return 0;
   return di;
+}
+/* S3a: render env for a saved draft — no global state touched */
+function draftEnv(d){
+  const designs = d.designs;
+  return { bg:d.bg, designs, notch:d.notch, wrap:d.wrap, mirror:d.mirror,
+           copyDesign:(d.copyDesign && d.copyDesign.length ? d.copyDesign : [0]),
+           activeDesign: Math.max(0, Math.min(d.activeDesign||0, designs.length-1)) };
 }
 let _cdSig='';
 function renderCopyDesigns(){
@@ -1499,7 +1508,7 @@ function currentLayout(){
 
 /* ---------- A4 page preview ---------- */
 const pv=$('#pagePrev'), pctx=pv.getContext('2d');
-const _imp = {key:null, pages:null, p:0, timer:0, building:false, queued:false};   // imposed preview cache (declared early — drawPagePrev may run at init)
+const _imp = {key:null, pages:null, result:null, p:0, timer:0, building:false, queued:false};   // imposed cache: result shared by preview AND export (S3b)
 function wrapSegsToCtx(ctx, segs, T, s){
   // T: wrap-mm -> page-mm ; s: mm -> px
   const P=(x,y)=>{ const q=T(x,y); return [q[0]*s, q[1]*s]; };
@@ -1660,7 +1669,7 @@ function syncScopeUI(){
   if(eb) eb.textContent = list ? '합본 PDF 내보내기' : 'PDF 내보내기';
   const nv = document.getElementById('prevNav');
   if(nv) nv.style.display = list ? '' : 'none';
-  if(list) requestImposedPrev(); else { _imp.pages=null; _imp.key=null; drawPagePrev(); }
+  if(list) requestImposedPrev(); else { _imp.pages=null; _imp.result=null; _imp.key=null; drawPagePrev(); }
   updateExportUI();
 }
 segBind('#scopeSeg', v=>{ state.exportScope=v; syncScopeUI(); });
@@ -1676,21 +1685,21 @@ async function buildImposedPrev(){
   const modalEl=document.getElementById('printModal');
   if(modalEl) modalEl.classList.add('busy');
   updateExportUI();
-  const keep=snapshotNow('원본');
-  const key=imposedKey();          // captured with UI state BEFORE compute mutates it
+  const key=imposedKey();
   try{
-    const {pages} = await computeImposedPages(state.machine, 'a4',
+    const result = await computeImposedPages(state.machine, 'a4',
       {mode: state.mode==='cut'?'cut':'mark', orient: state.orient});
-    _imp.pages=pages; _imp.p=Math.max(0, Math.min(_imp.p, pages.length-1)); _imp.key=key;
+    _imp.result=result; _imp.pages=result.pages;
+    _imp.p=Math.max(0, Math.min(_imp.p, result.pages.length-1)); _imp.key=key;
   }catch(e){
     console.warn('imposed preview failed', e);
-    _imp.key=key; _imp.pages=null;    // negative cache — don't loop
+    _imp.key=key; _imp.pages=null; _imp.result=null;    // negative cache — don't loop
     const pc=document.getElementById('prevCap');
     if(pc) pc.textContent='미리보기 오류: '+(e.message||e);
   }finally{
     _imp.building=false;
     if(modalEl) modalEl.classList.remove('busy');
-    applyDraft(keep, true); renderDrafts(); updateExportUI();
+    updateExportUI();
     if(_imp.queued){ _imp.queued=false; setTimeout(buildImposedPrev, 80); }
   }
   if(_imp.key===imposedKey()){ if(_imp.pages) renderImposedPrev(); }
@@ -1750,12 +1759,13 @@ async function drawOpsPage(cv, cx2, page){
 /* =========================================================================
    PDF export
    ========================================================================= */
-async function composeArtFlat(di){
+async function composeArtFlat(di, env){
+  const E = env || state;
   const ppm = DPI/25.4;
-  const W=Math.round(state.wrap.w*ppm), H=Math.round(state.wrap.h*ppm);
+  const W=Math.round(E.wrap.w*ppm), H=Math.round(E.wrap.h*ppm);
   const c=document.createElement('canvas'); c.width=W; c.height=H;
-  drawArtwork(c.getContext('2d'), W, H, ppm, state.mirror,
-              di===undefined ? state.activeDesign : di);
+  drawArtwork(c.getContext('2d'), W, H, ppm, E.mirror,
+              di===undefined ? E.activeDesign : di, E);
   // flatten onto white — notch bites print as unprinted white paper
   const f=document.createElement('canvas'); f.width=W; f.height=H;
   const fc=f.getContext('2d'); fc.fillStyle='#fff'; fc.fillRect(0,0,W,H); fc.drawImage(c,0,0);
@@ -1990,7 +2000,6 @@ async function exportPdf(){
   try{
     if(state.exportScope==='list' && drafts.length){
       // 목록 전체 = 합본 PDF + (옵션) 컷 파일을 개별 저장 — ZIP 없음
-      const keep=snapshotNow('원본');
       try{
         const withCut = !!(document.getElementById('bmCut')||{}).checked;
         const {pdf, name, cutFiles} = await buildImposedPdf(state.machine, 'a4',
@@ -2003,7 +2012,7 @@ async function exportPdf(){
             blob:new Blob([f.data], {type:'application/octet-stream'}), name:f.name}))), 600);
         }
       }finally{
-        applyDraft(keep, true); renderDrafts(); updateExportUI();
+        updateExportUI();
       }
       return;
     }
@@ -2045,7 +2054,6 @@ function snapshotNow(name){
       layers:d.layers.map(l=>({...l, _ko:undefined, _koKey:undefined}))})),
     thumb: thumbUrl() };
 }
-let _applyQuiet=false;   // suppress DOM sync while an imposed build iterates drafts
 function applyDraft(d, silent){
   if(!d) return;
   state.wrap={...d.wrap};
@@ -2061,7 +2069,6 @@ function applyDraft(d, silent){
     .filter(i=>activeDesign().layers[i]);
   state.sel = ds.length ? ds : [state.activeLayer];
   _dsgSeq = Math.max(_dsgSeq, ...state.designs.map(x=>parseInt((x.name.match(/\d+/)||['0'])[0])||0));
-  if(_applyQuiet){ if(!silent) toast('임시 저장을 불러왔습니다','ok'); return; }  // data-only (imposed build)
   cropOff();
   setSegActive('#modeSeg', state.mode); setSegActive('#cutSeg', state.cutStyle);
   setSegActive('#markSeg', state.machine); setSegActive('#orientSeg', state.orient);
@@ -2139,12 +2146,6 @@ $('#draftSaveBtn').addEventListener('click', ()=>{
   toast('목록 추가됨 ('+d.n+'개) — 목록 '+drafts.length+'항목, 「전체 내보내기」로 최소 용지 배치','ok');
 });
 async function computeImposedPages(machine, paperKey, opt){
-  _applyQuiet=true;
-  try{
-  return await __computeImposedPages(machine, paperKey, opt);
-  } finally { _applyQuiet=false; }
-}
-async function __computeImposedPages(machine, paperKey, opt){
   opt = opt || {};
   const artMode = opt.mode==='cut' ? 'cut' : 'mark';               // 절취선 vs 인식마크
   const orient  = (opt.orient==='h' || opt.orient==='v') ? opt.orient
@@ -2160,9 +2161,9 @@ async function __computeImposedPages(machine, paperKey, opt){
   const pages=[]; let cur=[], cy=box.y, cx=box.x;
   const sizeErr=(d)=>new Error('작업 1개가 안전영역보다 큽니다: '+d.name+' ('+d.wrap.w+'×'+d.wrap.h+'mm'+(rot?' · 세로':' · 가로')+')');
   for(const d of drafts){
-    applyDraft(d, true);
-    const di=designIdxFor(0);
-    const flat=await composeArtFlat(di);
+    const env=draftEnv(d);                         // state-free (S3a): no applyDraft, no snapshot
+    const di=designIdxFor(0, env);
+    const flat=await composeArtFlat(di, env);
     let R=flat;
     if(rot){
       // vertical cell — rotate the artwork 90° (exactly, never stretched)
@@ -2253,8 +2254,10 @@ async function __computeImposedPages(machine, paperKey, opt){
   return {pages:outPages, cellPages:pages, artMode, orient, pg};
 }
 async function buildImposedPdf(machine, paperKey, opt){
-  const {pages:outPages, cellPages, artMode, orient, pg} =
-    await computeImposedPages(machine, paperKey, opt);
+  // S3b: preview and export share ONE computed result (same key => same bytes)
+  const fresh = (_imp.result && !_imp.building && _imp.key===imposedKey()) ? _imp.result
+              : await computeImposedPages(machine, paperKey, opt);
+  const {pages:outPages, cellPages, artMode, orient, pg} = fresh;
   const pdf=buildPdf(outPages, {title:'11oz Mug Wrap Imposed '+drafts.length+' designs'});
   const name = artMode==='cut'
     ? '11oz-mug-imposed-'+drafts.length+'-cut-'+orient+'-'+paperKey+
