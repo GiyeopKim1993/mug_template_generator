@@ -104,7 +104,7 @@ function toast(msg, kind){
 }
 
 /* ---------- wrap texture (flat artwork) ---------- */
-const BUILD_V = 'v4.16';                      // single source of truth (footer + stage chip)
+const BUILD_V = 'v4.17';                      // single source of truth (footer + stage chip)
 /* 운영 설정은 js/config.js (관리 페이지가 수정하는 파일)에서 관리합니다. */
 const MT_CFG_DEFAULT = {
   version:1,
@@ -1775,6 +1775,26 @@ async function composePageArt(L, di){
   pc.drawImage(flat, 0, 0, P.height, P.width);
   return P;
 }
+/* ---- print raster: RGB -> CMYK + alpha; white/empty = unprinted (no ink) ---- */
+async function deflateZ(u8){
+  const st = new Blob([u8]).stream().pipeThrough(new CompressionStream('deflate'));
+  return new Uint8Array(await new Response(st).arrayBuffer());
+}
+async function pdfArtRaster(cv){
+  const w=cv.width, h=cv.height;
+  const px=cv.getContext('2d').getImageData(0,0,w,h).data;
+  const cmyk=new Uint8Array(w*h*4), alpha=new Uint8Array(w*h);
+  for(let i=0,j=0;i<alpha.length;i++,j+=4){
+    const r=px[j], g=px[j+1], b=px[j+2];
+    alpha[i] = (px[j+3]<16 || (r>=250 && g>=250 && b>=250)) ? 0 : 255;   // empty or pure white -> no ink
+    let C=1-r/255, M=1-g/255, Y=1-b/255;
+    const K = C<M ? (C<Y?C:Y) : (M<Y?M:Y);
+    if(K<1){ C=(C-K)/(1-K); M=(M-K)/(1-K); Y=(Y-K)/(1-K); }
+    cmyk[j]=(C*255+0.5)|0; cmyk[j+1]=(M*255+0.5)|0; cmyk[j+2]=(Y*255+0.5)|0; cmyk[j+3]=(K*255+0.5)|0;
+  }
+  const [cz, az] = await Promise.all([deflateZ(cmyk), deflateZ(alpha)]);
+  return {cmykZ:cz, alphaZ:az};
+}
 function primToOps(prim, ops){
   if(prim.t==='img'){
     const gi = MARK_IMGS[prim.key];
@@ -1929,10 +1949,12 @@ async function buildPdfBlob(){
         const jpeg = await new Promise((res,rej)=>{
           artCv.toBlob(b=> b? res(b): rej(new Error('jpeg')), 'image/jpeg', 0.94);
         });
-        entry = {artCv, bytes:new Uint8Array(await jpeg.arrayBuffer())};
+        const rast = await pdfArtRaster(artCv);
+        entry = {artCv, bytes:new Uint8Array(await jpeg.arrayBuffer()), ...rast};
         artCache.set(di, entry);
       }
       ops.push({op:'image', bytes:entry.bytes, w:entry.artCv.width, h:entry.artCv.height,
+        cmykZ:entry.cmykZ, alphaZ:entry.alphaZ,
         x:mm2pt(r.x), y:ptY(r.y+r.h), wPt:mm2pt(r.w), hPt:mm2pt(r.h)});
     }
     /* centered text helper (approx Helvetica width = 0.55em/char) */
@@ -2164,6 +2186,7 @@ async function computeImposedPages(machine, paperKey, opt){
     const bytes=new Uint8Array(await new Promise((res,rej)=>{
       R.toBlob(b=> b?res(b.arrayBuffer()):rej(new Error('jpeg')), 'image/jpeg', 0.94);
     }));
+    const rast=await pdfArtRaster(R);               // CMYK+alpha once per artwork
     const cw=rot ? d.wrap.h : d.wrap.w;            // footprint (mm)
     const ch=rot ? d.wrap.w : d.wrap.h;
     const or=orient;
@@ -2174,7 +2197,8 @@ async function computeImposedPages(machine, paperKey, opt){
       if(!spot) throw sizeErr(d);
       if(spot.pages>0){ if(cur.length){ pages.push(cur); cur=[]; } cx=box.x; cy=box.y; }
       cx=spot.x; cy=spot.y;
-      cur.push({bytes, wPx:R.width, hPx:R.height, x:cx, y:cy, wMm:cw, hMm:ch, or,
+      cur.push({bytes, cmykZ:rast.cmykZ, alphaZ:rast.alphaZ,
+                wPx:R.width, hPx:R.height, x:cx, y:cy, wMm:cw, hMm:ch, or,
                 wrap:{w:d.wrap.w, h:d.wrap.h}, notch:d.notch});
       cx+=cw+gap;
     }
@@ -2187,6 +2211,7 @@ async function computeImposedPages(machine, paperKey, opt){
     const pt2=(mm)=>mm2pt(pg.h-mm);
     for(const c of cells){
       ops.push({op:'image', bytes:c.bytes, w:c.wPx, h:c.hPx,
+        cmykZ:c.cmykZ, alphaZ:c.alphaZ,
         x:mm2pt(c.x), y:pt2(c.y+c.hMm), wPt:mm2pt(c.wMm), hPt:mm2pt(c.hMm)});
       uT=Math.min(uT,c.y); uB=Math.max(uB,c.y+c.hMm);
     }

@@ -77,7 +77,7 @@ function buildPdf(pages, meta){
         const key = op.bytes.length+':'+op.w+':'+op.h;
         if(seenJpeg.has(key)) op._imgIdx = seenJpeg.get(key);
         else { op._imgIdx = images.length; seenJpeg.set(key, op._imgIdx);
-               images.push({bytes:op.bytes, w:op.w, h:op.h}); }
+               images.push({bytes:op.bytes, w:op.w, h:op.h, cmykZ:op.cmykZ, alphaZ:op.alphaZ}); }
       }
       if(op.op==='text') fontUsed = true;
       for(const pn of ['stroke','fill']){
@@ -94,6 +94,7 @@ function buildPdf(pages, meta){
   ids.page = []; ids.content = [];
   for(let i=0;i<pages.length;i++){ ids.page.push(next++); ids.content.push(next++); }
   ids.images = images.map(()=>next++);
+  ids.smasks = images.map(im => (im.cmykZ && im.alphaZ) ? next++ : 0);
   ids.gsa = [];
   let gi=1;
   for(const a of alphaMap.keys()){ alphaMap.set(a, gi); ids.gsa.push({alpha:a, id:next++}); gi++; }
@@ -164,9 +165,18 @@ function buildPdf(pages, meta){
       '] /Resources '+res.join(' ')+' /Contents '+ids.content[pi]+' 0 R >>';
   }
   images.forEach((im,i)=>{
-    objData[ids.images[i]] = {streamBytes: im.bytes,
-      dict: '<< /Type /XObject /Subtype /Image /Width '+im.w+' /Height '+im.h+
-            ' /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length '+im.bytes.length+' >>'};
+    if(im.cmykZ && im.alphaZ){                    // CMYK + SMask alpha (white/empty = no ink)
+      objData[ids.smasks[i]] = {streamBytes: im.alphaZ,
+        dict: '<< /Type /XObject /Subtype /Image /Width '+im.w+' /Height '+im.h+
+              ' /ColorSpace /DeviceGray /BitsPerComponent 8 /Filter /FlateDecode /Length '+im.alphaZ.length+' >>'};
+      objData[ids.images[i]] = {streamBytes: im.cmykZ,
+        dict: '<< /Type /XObject /Subtype /Image /Width '+im.w+' /Height '+im.h+
+              ' /ColorSpace /DeviceCMYK /BitsPerComponent 8 /Filter /FlateDecode /SMask '+ids.smasks[i]+' 0 R /Length '+im.cmykZ.length+' >>'};
+    } else {
+      objData[ids.images[i]] = {streamBytes: im.bytes,
+        dict: '<< /Type /XObject /Subtype /Image /Width '+im.w+' /Height '+im.h+
+              ' /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length '+im.bytes.length+' >>'};
+    }
   });
   ids.gsa.forEach(g=>{
     objData[g.id] = '<< /Type /ExtGState /ca '+__num(g.alpha)+' /CA '+__num(g.alpha)+' >>';
