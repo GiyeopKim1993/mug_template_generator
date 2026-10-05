@@ -377,38 +377,26 @@
 </div>
 
 <script type="importmap">{"imports":{"three":"./vendor/three.module.js"}}</script>
+  <!-- ===== script load order: vendor → data → app slices → i18n/effects → 3D ===== -->
+  <!-- vendor/lib -->
   <script src="js/fcm-lib.js?v=20261004l"></script>
   <script src="js/pure.js?v=20261004l"></script>
-<script src="js/config.js?v=20261004l"></script>
+  <script src="js/config.js?v=20261004l"></script>
+  <!-- data/pipeline -->
   <script src="js/store.js?v=20261005b"></script>
   <script src="js/export.js?v=20261005b"></script>
+  <!-- app slices (dependency order) -->
   <script src="js/design-core.js?v=20261005c"></script>
-<script src="js/stage3d.js?v=20261005c"></script>
-<script src="js/editor-canvas.js?v=20261005c"></script>
-<script src="js/editor-ops.js?v=20261005c"></script>
-<script src="js/editor-preview.js?v=20261005c"></script>
-<script src="js/support.js?v=20261005c"></script>
-<script src="js/app.js?v=20261005c"></script>
+  <script src="js/stage3d.js?v=20261005c"></script>
+  <script src="js/editor-canvas.js?v=20261005c"></script>
+  <script src="js/editor-ops.js?v=20261005c"></script>
+  <script src="js/editor-preview.js?v=20261005c"></script>
+  <script src="js/support.js?v=20261005c"></script>
+  <script src="js/app.js?v=20261005c"></script>
+  <!-- i18n/effects -->
   <script src="js/i18n.js?v=20261005a"></script>
   <script src="js/mockup.js?v=20261005a"></script>
-  <script>
-    /* model viewer: modules are CORS-blocked on file:// → inject only over http(s) */
-    if (location.protocol !== 'file:') {
-      var _mv = document.createElement('script');
-      _mv.type = 'module';
-      _mv.src = 'js/model-viewer.js?v=20261005a';
-      document.body.appendChild(_mv);
-    } else {
-      document.addEventListener('DOMContentLoaded', function () {
-        var st = document.getElementById('stage');
-        if (st && !document.getElementById('mug3d')) {
-          var n = document.createElement('div');
-          n.style.cssText = 'position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#9fb2d8;font:13px/1.6 system-ui;text-align:center;padding:24px';
-          n.textContent = '3D 렌더링은 http(s) 주소로 열었을 때만 동작합니다 (file:// 는 브라우저 모듈 제한)';
-          st.appendChild(n);
-        }
-      });
-    }
-  </script>
+  <!-- 3D stage -->
+  <script src="js/mv-boot.js?v=20261006a"></script>
 </body>
 </html>

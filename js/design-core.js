@@ -1,9 +1,10 @@
 
-
 /* =========================================================================
-   UI bindings + rendering (state/config/drafts live in js/store.js;
-   PDF/DXF/save pipeline lives in js/export.js — S4 split 2026-10-05)
+   design-core.js — design raster core: state sync, design canvas cache,
+   registration-mark data, toast, artwork draw + texture rebuild, flat compose.
+   Load: FIRST app slice (after export.js). No DOM widget wiring here.
    ========================================================================= */
+/* UI bindings overview (S4): state/config/drafts in store.js; pipeline in export.js */
 function syncActive(){ state.img = activeLayer(); }
 /* raster cache for INACTIVE designs (page preview); the active design always
    uses the live `tex` canvas, rebuilt by rebuildTexture() */
@@ -107,4 +108,18 @@ function rebuildTexture(){
   tex.width=W; tex.height=H;
   drawArtwork(tex.getContext('2d'), W, H, W/state.wrap.w, false);
   const d = activeDesign(); if(d) d.ver = (d.ver||0)+1;   // invalidate caches
+}
+
+/* ---- flat artwork composition (moved R-3: raster lives with drawArtwork) ---- */
+async function composeArtFlat(di, env){
+  const E = env || state;
+  const ppm = DPI/25.4;
+  const W=Math.round(E.wrap.w*ppm), H=Math.round(E.wrap.h*ppm);
+  const c=document.createElement('canvas'); c.width=W; c.height=H;
+  drawArtwork(c.getContext('2d'), W, H, ppm, E.mirror,
+              di===undefined ? E.activeDesign : di, E);
+  // flatten onto white — notch bites print as unprinted white paper
+  const f=document.createElement('canvas'); f.width=W; f.height=H;
+  const fc=f.getContext('2d'); fc.fillStyle='#fff'; fc.fillRect(0,0,W,H); fc.drawImage(c,0,0);
+  return f;
 }

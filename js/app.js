@@ -1,3 +1,8 @@
+/* =========================================================================
+   app.js — boot only: decode registration marks, run init().
+   Load: LAST app slice (after support.js, before i18n.js).
+   ========================================================================= */
+
 /* ---------- registration marks: decode now that drawPagePrev() exists ---------- */
 for(const k of Object.keys(MARK_DATA)){
   const im = new Image();

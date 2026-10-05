@@ -1,3 +1,8 @@
+/* =========================================================================
+   editor-preview.js — A4 page preview, export UI sync, imposition scope UI.
+   Load: after editor-ops.js, before support.js.
+   ========================================================================= */
+
 /* ---------- A4 page preview ---------- */
 const pv=$('#pagePrev'), pctx=pv.getContext('2d');
 function wrapSegsToCtx(ctx, segs, T, s){

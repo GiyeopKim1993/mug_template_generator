@@ -1,5 +1,8 @@
 /* =========================================================================
-   3D mug renderer (pure canvas 2D, cylinder texture mapping)
+   stage3d.js — 3D VIEW controller: mug pose state, drag/zoom/keyboard,
+   render loop handoff to model-viewer.js, render & print modals.
+   (Actual WebGL rendering lives in model-viewer.js.)
+   Load: after design-core.js.
    ========================================================================= */
 const stageBox = $('#stage');   // pointer/keyboard host — WebGL #mug3d canvas is mounted by model-viewer.js
 const PITCH0 = Math.asin(0.16);            // default camera elevation (ry = r*0.16 look)

@@ -1,5 +1,7 @@
 /* =========================================================================
-   2D editor
+   editor-canvas.js — 2D editor surface: layout, paint, hit-test, drag,
+   crop, context menu, scheduled draw queue (store subscription entry).
+   Load: after stage3d.js.
    ========================================================================= */
 const ed = $('#editor'), ectx = ed.getContext('2d');
 let edBox = {ox:0, oy:0, s:1};   // mm -> px scale, origin

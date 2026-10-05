@@ -1,3 +1,9 @@
+/* =========================================================================
+   editor-ops.js — image loading (button/drag/paste), layer operations,
+   rotation & control sync, layer/design selectors, copies & mark hints,
+   segment controls. Load: after editor-canvas.js.
+   ========================================================================= */
+
 /* ---------- image loading ---------- */
 async function loadFile(file){
   if(!file || !file.type.startsWith('image/')){ toast('이미지 파일만 지원합니다','err'); return; }
