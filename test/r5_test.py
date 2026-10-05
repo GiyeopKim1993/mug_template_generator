@@ -119,13 +119,13 @@ def main():
         for cls in ('s-bmc','s-toss','s-kakao','s-donor'):
             check(p.locator('#supportRow .'+cls).count()==1, 'has '+cls)
         p.locator('#supportRow .s-bmc').click(); p.wait_for_timeout(250)
-        toast = p.locator('#toast').inner_text()
-        check('미설정' in toast, 'unconfigured support shows guidance toast')
+        code = p.get_attribute('#toast', 'data-code')
+        check(code == 'support-unset', 'unconfigured support shows guidance toast (code=%s)' % code)
         # donor code redeem: invalid → guidance, valid → mute
         p.on('dialog', lambda d: d.accept('MT-INVALID-CODE'))
         p.locator('#supportRow .s-donor').click(); p.wait_for_timeout(600)
-        toast = p.locator('#toast').inner_text()
-        check('유효하지 않은' in toast, 'invalid donor code rejected (%s)' % toast[:40])
+        code = p.get_attribute('#toast', 'data-code')
+        check(code == 'donor-invalid', 'invalid donor code rejected (code=%s)' % code)
 
         # --- 5. ad triggers (?ad=1): 3rd export shows slot ---
         ctx2 = b.new_context(viewport={'width':1440,'height':900}, accept_downloads=True)

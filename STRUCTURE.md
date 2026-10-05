@@ -32,10 +32,11 @@
 - 부정 캐시·스코프 전환 시 캐시 클리어 포함.
 - 게이트: 전체 15종 회귀 ALL GREEN.
 
-### S4: 결합 해소 (A1/A2/A7)
-- `js/export.js`(파이프라인) / `js/store.js`(상태+구독) 로 분리 — app.js는 UI 바인딩만.
-- 핵심 테스트 자리에 `data-testid` 부착 → 한글 카피 변경이 테스트를 깨지 않음.
-- 게이트: 전 회귀 통과 후 파일 분리 (script 순서 보존).
+### ✅ S4: 결합 해소 (A1/A2/A7) — 1차 완료 (2026-10-05)
+- `js/store.js`(state·config·drafts·`onStateChange`/`notifyState` 구독) / `js/export.js`(PDF·DXF·저장 파이프라인·`_imp` 공유 캐시) 분리 — app.js는 UI 바인딩·렌더링 (2,187→1,793줄).
+- A7 해소: 토스트 `data-code`(`support-unset`·`donor-invalid`·`donor-ok`) · `draftCount[data-n]` — 한글 카피 변경이 테스트를 깨지 않음. #1 레이아웃 = ui4 단언 잠금.
+- script 순서: config → store → export → app (index.html).
+- 게이트: 전 회귀 18종 ALL GREEN 후 커밋.
 
 ## 4. 하지 않는 것 (합의된 불변)
 - `computeLayout`(단건 인쇄) 정상 경로 — 건드리지 않음 (R12 계약).
