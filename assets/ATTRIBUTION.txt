@@ -6,3 +6,6 @@ mug.glb — “standard 11 oz ceramic mug” / “real sublimation wrap” geome
 mockup.jpg — “Coffee Mug (Unsplash).jpg” (CC0 / Public Domain dedication)
   Source: Wikimedia Commons — File:Coffee Mug (Unsplash).jpg
   Used as the photorealistic mockup base (design composited at runtime).
+mockup_alt.jpg — AI-generated blank-mug lifestyle photo (user-selected base)
+  Generated in-house for this project; no third-party rights, no attribution required.
+  Currently the active default mockup base (MOCKUP_URL); mockup.jpg kept as CC0 fallback.

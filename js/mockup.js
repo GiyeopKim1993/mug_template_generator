@@ -14,9 +14,10 @@
    ============================================================ */
 'use strict';
 
-const MOCKUP_URL = 'assets/mockup.jpg?v=20261005a';
-/* front print area: TL TR BR BL — tuned against assets/mockup.jpg (1920x1080) */
-const MOCKUP_QUAD = [[0.5665, 0.404], [0.7165, 0.399], [0.7195, 0.711], [0.5655, 0.717]];
+const MOCKUP_URL = 'assets/mockup_alt.jpg?v=20261005a';
+/* front print area: TL TR BR BL — measured on assets/mockup_alt.jpg (2048x2048, PIL edge profile):
+   left silhouette x=152/512, body/handle junction x=312/512, rim y=175/512, base y=405/512 */
+const MOCKUP_QUAD = [[0.2969, 0.3418], [0.6094, 0.3418], [0.6094, 0.7910], [0.2969, 0.7910]];
 
 const _mpPhoto = new Image();
 let _mpPhotoOk = false, _mpLastVer = -1, _mpDone = false;
