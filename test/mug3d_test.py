@@ -30,7 +30,13 @@ async def main():
         # ---- GLB loaded: 3 meshes, body printed, handle/inner plain ----
         info = await pg.evaluate('()=>window.__mv.info()')
         chk('glb: 3/3 meshes uv-mapped initially', info['meshes'] == 3 and info['uv'] == 3, info)
-        chk('glb: webgl renderer + ACES', info['renderer'] == 'webgl' and info['tone'] == 4, info)
+        # r162: Neutral tone mapping (ACES flattens saturated artwork)
+        chk('glb: webgl renderer + neutral tone', info['renderer'] == 'webgl'
+            and info['tone'] == 7 and info.get('toneName') == 'neutral', info)
+        chk('glb: environment (hdri preferred, procedural fallback)',
+            info.get('env') in ('hdri', 'procedural'), info)
+        wf = info.get('wallFit')
+        chk('glb: wall fit v = a + b*y (b > 0, measured)', wf and wf[1] > 0, info)
 
         probe = await pg.evaluate('()=>window.__mv.probe()')
         printable = [x for x in probe if x['printable']]
@@ -48,7 +54,8 @@ async def main():
         }""")
         await pg.wait_for_timeout(700)
         info2 = await pg.evaluate('()=>window.__mv.info()')
-        chk('texture: design applied (texW=1400, mapped>=1)', info2['hasTex'] and info2['texW'] == 1400 and info2['mapped'] >= 1, info2)
+        # wrap-band canvas = full circumference px: Wc = CIRC_MM(257.6) * Wb(1400) / w(205)
+        chk('texture: design applied (texW=1759, mapped>=1)', info2['hasTex'] and info2['texW'] == 1759 and info2['mapped'] >= 1, info2)
         chk('body still the only printable mesh after upload',
             [x for x in (await pg.evaluate('()=>window.__mv.probe()')) if x['printable'] and x['map']] != [],
             None)
