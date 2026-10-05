@@ -116,16 +116,12 @@
   #draftList li{display:flex; align-items:center; gap:7px; background:var(--panel); border:1px solid var(--line);
     border-radius:8px; padding:4px 7px; font-size:12px; color:var(--txt)}
   #draftList li img{width:34px; height:24px; object-fit:cover; border-radius:4px; background:#fff; flex:none}
-  #draftList li .dname{flex:1; overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
-  #draftList li .dsub{color:var(--sub); font-size:11px}
   #draftList .empty{color:var(--sub); font-size:11.8px; padding:4px 2px; border:none; background:none}
   /* crop bar */
   #cropBar{display:none; align-items:center; gap:8px; margin-top:8px; font-size:12.5px; color:var(--sub)}
   #cropBar.show{display:flex}
   /* render modal extras */
   #renderModal .modal{max-width:min(86vw,1020px); text-align:center}
-  #renderModal .rhint{display:none}   /* stage-hint moves in with the canvas */
-  #renderModal .rhint{font-size:12px; color:var(--sub); margin-top:8px}
   #renderModal #stage{margin:0 auto; border-radius:12px; overflow:hidden}
   input[type=range]{flex:1; min-width:110px; accent-color:var(--acc)}
   .val{font-variant-numeric:tabular-nums; font-size:12.5px; color:var(--txt); min-width:58px; text-align:right}
@@ -176,15 +172,6 @@
   background:#141926; border:1px solid #242c3d; border-radius:8px; padding:8px 10px; margin-top:8px}
 #savePanel .sp-hint b{color:#dfe6f3}
 #savePanel .sp-btns{display:flex; gap:8px; flex-wrap:wrap; margin-top:8px}
-#batchModal{position:fixed; inset:0; z-index:85; background:rgba(5,7,10,.72); display:none;
-  align-items:center; justify-content:center}
-#batchModal.open{display:flex}
-#batchModal .modal{width:min(92vw,560px); text-align:left}
-#batchModal h3{margin:0 0 4px; text-align:center}
-#batchModal .bm-row{display:flex; align-items:center; gap:10px; margin:12px 0; flex-wrap:wrap}
-#batchModal .bm-lab{font-size:12.5px; color:var(--sub); min-width:92px}
-#batchModal .bm-btns{display:flex; gap:8px; justify-content:flex-end; margin-top:14px}
-#batchModal .hint{text-align:left}
 #savePanel .sp-drag{display:block; text-align:center; padding:8px 10px; border-radius:8px; margin-top:8px;
   border:1px dashed #3d4a63; color:#8fb4ff; font-size:12.5px; font-weight:600; text-decoration:none;
   background:#10141d; width:100%}
@@ -308,18 +295,6 @@
   #supportRow .s-toss{border-color:rgba(86,148,255,.5); color:#7ab0ff}
   #supportRow .s-kakao{border-color:rgba(255,223,0,.5); color:#ffe680}
   @media (max-width:700px){ #supportRow{padding:0 10px 12px} #supportRow a,#supportRow button{font-size:12px; padding:6px 11px} }
-
-  /* ---- 3D model viewer (GLB) ---- */
-  #modelModal{position:fixed; inset:0; background:rgba(5,7,10,.78); backdrop-filter:blur(4px);
-    display:none; align-items:center; justify-content:center; z-index:60; padding:18px}
-  #modelModal.open{display:flex}
-  #modelModal .modal{max-width:min(88vw,760px)}
-  #modelSlot{width:min(72vw,640px); height:min(58vh,440px); border-radius:10px; overflow:hidden;
-    background:#141a26; border:1px solid var(--line); touch-action:none; position:relative}
-  #modelSlot canvas{display:block; width:100% !important; height:100% !important}
-  #modelModal .pd-head{display:flex; align-items:center; justify-content:space-between; gap:10px; margin-bottom:10px}
-  #modelModal .rhint{color:var(--sub); font-size:12.5px; margin-top:9px; line-height:1.55}
-  @media (max-width:700px){ #modelSlot{width:88vw; height:46vh} }
 
   /* ---- export dialog: preview nav + scope row ---- */
   .prev-nav{display:flex; align-items:center; justify-content:center; gap:10px; margin-top:8px}

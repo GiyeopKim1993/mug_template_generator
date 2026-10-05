@@ -89,7 +89,6 @@ function toast(msg, kind){
 }
 
 /* ---------- wrap texture (flat artwork) ---------- */
-const BUILD_V = 'v4.18';                      // single source of truth (footer + stage chip)
 /* 운영 설정은 js/config.js (관리 페이지가 수정하는 파일)에서 관리합니다. */
 const MT_CFG_DEFAULT = {
   version:1,
@@ -1650,16 +1649,7 @@ function saveFile(blob, name, noTick){
   setTimeout(()=>URL.revokeObjectURL(url), 8000);
   return false;
 }
-function downloadBlob(blob, name){ return saveFile(blob, name); }
 /* minimal store-only ZIP (single file = single download, no multi-download blocks) */
-let _crcT=null;
-function crc32(u8){
-  if(!_crcT){ _crcT=new Uint32Array(256);
-    for(let n=0;n<256;n++){ let c=n; for(let k=0;k<8;k++) c=(c&1)?(0xEDB88320^(c>>>1)):(c>>>1); _crcT[n]=c; } }
-  let c=0xFFFFFFFF;
-  for(let i=0;i<u8.length;i++) c=_crcT[(c^u8[i])&0xFF]^(c>>>8);
-  return (c^0xFFFFFFFF)>>>0;
-}
 async function buildPdfBlob(){
   try{
     const L=currentLayout();
