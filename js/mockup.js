@@ -1,23 +1,29 @@
 /* ============================================================
    mockup.js — photoreal mockup (#10): warp the current design onto
-   assets/mockup.jpg (CC0 photo — see ATTRIBUTION.txt).
+   the user-picked real photo (assets/mockup_user.jpg).
 
    Geometry: body QUAD below is the front print area (handle excluded),
    in FRACTIONS of the photo. The design is remapped CYLINDRICALLY
    (x → asin → wrap u) so the visible front shows the CENTER of the wrap
-   (= face centre, consistent with the 3-zone rule), then shaded with a
-   cylinder light band so it sits on the curved surface.
+   (= face centre, consistent with the 3-zone rule).
 
-   The quad is white-filled first: the source photo carries pre-existing
-   art (skull print) that a real blank mug would not have — the mockup
-   must read as a freshly printed blank mug.
+   Realism pipeline ("고품질 실제 같은 합성"):
+     ① white-fill the quad (clean blank base, covers any pre-existing art)
+     ② cylindrical strip warp (no stretch; perspective via 4-corner quad)
+     ③ soft cylinder light band (shape cue, reduced — photo lighting leads)
+     ④ PHOTO-LUMINANCE MULTIPLY: the quad's original photo pixels are
+        multiplied back over the artwork at partial alpha, so the print
+        inherits the real shot's shading, highlights and warm cast
+     ⑤ base contact shadow
+     ⑥ FEATHERED quad edge (destination-in soft mask) — no sticker outline
    ============================================================ */
 'use strict';
 
-const MOCKUP_URL = 'assets/mockup_alt.jpg?v=20261005a';
-/* front print area: TL TR BR BL — measured on assets/mockup_alt.jpg (2048x2048, PIL edge profile):
-   left silhouette x=152/512, body/handle junction x=312/512, rim y=175/512, base y=405/512 */
-const MOCKUP_QUAD = [[0.2969, 0.3418], [0.6094, 0.3418], [0.6094, 0.7910], [0.2969, 0.7910]];
+const MOCKUP_URL = 'assets/mockup_user.jpg?v=20261005a';
+/* front print area: TL TR BR BL — PIL-measured on assets/mockup_user.jpg
+   (2048x2048, 512-space edge profile x4): left silhouette 150→0.2930,
+   body/handle junction ~287→0.5606, rim 174→0.3398, base 405→0.7910 */
+const MOCKUP_QUAD = [[0.2930, 0.3398], [0.5606, 0.3398], [0.5606, 0.7910], [0.2930, 0.7910]];
 
 const _mpPhoto = new Image();
 let _mpPhotoOk = false, _mpLastVer = -1, _mpDone = false;
@@ -27,10 +33,18 @@ _mpPhoto.src = MOCKUP_URL;
 
 function _mpWarp(ctx, design, q, W, H) {
   const [TL, TR, BR, BL] = q;
-  const dx0 = Math.min(TL[0], TR[0], BR[0], BL[0]) - 4;
-  const dy0 = Math.min(TL[1], TR[1], BR[1], BL[1]) - 4;
-  const dx1 = Math.max(TL[0], TR[0], BR[0], BL[0]) + 4;
-  const dy1 = Math.max(TL[1], TR[1], BR[1], BL[1]) + 4;
+  const pad = 8;
+  const dx0 = Math.max(0, Math.floor(Math.min(TL[0], TR[0], BR[0], BL[0]) - pad));
+  const dy0 = Math.max(0, Math.floor(Math.min(TL[1], TR[1], BR[1], BL[1]) - pad));
+  const dx1 = Math.min(W, Math.ceil(Math.max(TL[0], TR[0], BR[0], BL[0]) + pad));
+  const dy1 = Math.min(H, Math.ceil(Math.max(TL[1], TR[1], BR[1], BL[1]) + pad));
+  const bw = dx1 - dx0, bh = dy1 - dy0;
+
+  /* capture the photo's own pixels under the quad BEFORE covering —
+     used later for the lighting multiply (best realism lever) */
+  let photoTile = null;
+  try { photoTile = ctx.getImageData(dx0, dy0, bw, bh); } catch (_e) { photoTile = null; }
+
   ctx.save();
   ctx.beginPath();
   ctx.moveTo(TL[0], TL[1]); ctx.lineTo(TR[0], TR[1]);
@@ -39,7 +53,7 @@ function _mpWarp(ctx, design, q, W, H) {
   ctx.clip();
   /* blank-mug base (also covers pre-existing photo art) */
   ctx.fillStyle = '#f6f5f3';
-  ctx.fillRect(dx0, dy0, dx1 - dx0, dy1 - dy0);
+  ctx.fillRect(dx0, dy0, bw, bh);
 
   const N = 72, DW = design.width, DH = design.height;
   ctx.imageSmoothingQuality = 'high';
@@ -63,26 +77,69 @@ function _mpWarp(ctx, design, q, W, H) {
     ctx.restore();
   }
 
-  /* cylinder shading: edge falloff + gloss band (light from upper-left) */
+  /* soft cylinder light band (shape cue only — the photo multiply below
+     carries the real lighting; amplitudes reduced to avoid double shading) */
   const g = ctx.createLinearGradient(TL[0], 0, TR[0], 0);
-  g.addColorStop(0.00, 'rgba(0,0,0,0.34)');
-  g.addColorStop(0.10, 'rgba(0,0,0,0.12)');
-  g.addColorStop(0.30, 'rgba(255,255,255,0.10)');
-  g.addColorStop(0.38, 'rgba(255,255,255,0.22)');
+  g.addColorStop(0.00, 'rgba(0,0,0,0.24)');
+  g.addColorStop(0.10, 'rgba(0,0,0,0.08)');
+  g.addColorStop(0.30, 'rgba(255,255,255,0.07)');
+  g.addColorStop(0.38, 'rgba(255,255,255,0.15)');
   g.addColorStop(0.55, 'rgba(0,0,0,0.00)');
-  g.addColorStop(0.86, 'rgba(0,0,0,0.16)');
-  g.addColorStop(1.00, 'rgba(0,0,0,0.42)');
+  g.addColorStop(0.86, 'rgba(0,0,0,0.11)');
+  g.addColorStop(1.00, 'rgba(0,0,0,0.30)');
   ctx.globalCompositeOperation = 'source-atop';
   ctx.fillStyle = g;
-  ctx.fillRect(dx0, dy0, dx1 - dx0, dy1 - dy0);
+  ctx.fillRect(dx0, dy0, bw, bh);
+  ctx.globalCompositeOperation = 'source-over';
+
+  /* PHOTO-LUMINANCE MULTIPLY — print picks up the shot's real shading */
+  if (photoTile) {
+    try {
+      const tmp = document.createElement('canvas');
+      tmp.width = bw; tmp.height = bh;
+      const tc = tmp.getContext('2d');
+      tc.putImageData(photoTile, 0, 0);
+      tc.globalCompositeOperation = 'multiply';
+      tc.drawImage(ctx.canvas, dx0, dy0, bw, bh, 0, 0, bw, bh);
+      tc.globalCompositeOperation = 'source-over';
+      ctx.globalAlpha = 0.75;                 // 75% photo lighting, 25% flat art
+      ctx.drawImage(tmp, 0, 0);
+      ctx.globalAlpha = 1;
+    } catch (_e) { /* tainted canvas (file://) — skip, warp alone still correct */ }
+  }
+
   /* base contact shadow */
   const gv = ctx.createLinearGradient(0, dy1 - 46, 0, dy1);
   gv.addColorStop(0, 'rgba(0,0,0,0)');
   gv.addColorStop(1, 'rgba(0,0,0,0.30)');
   ctx.fillStyle = gv;
-  ctx.fillRect(dx0, dy1 - 46, dx1 - dx0, 46);
-  ctx.globalCompositeOperation = 'source-over';
+  ctx.fillRect(dx0, dy1 - 46, bw, 46);
   ctx.restore();
+
+  /* FEATHERED EDGE — soften the quad boundary so it never reads as a sticker */
+  try {
+    const m = document.createElement('canvas');
+    m.width = W; m.height = H;
+    const mc = m.getContext('2d');
+    mc.fillStyle = '#fff'; mc.fillRect(0, 0, W, H);       // keep photo everywhere
+    mc.beginPath();
+    mc.moveTo(TL[0], TL[1]); mc.lineTo(TR[0], TR[1]);
+    mc.lineTo(BR[0], BR[1]); mc.lineTo(BL[0], BL[1]);
+    mc.closePath();
+    mc.save();
+    mc.clip();
+    mc.globalCompositeOperation = 'destination-out';
+    mc.fillRect(dx0, dy0, bw, bh);                        // punch hole = quad region
+    mc.globalCompositeOperation = 'source-over';
+    mc.filter = 'blur(2.5px)';
+    mc.fillStyle = '#fff';
+    mc.fill();                                            // blurred polygon back in
+    mc.restore();
+    ctx.save();
+    ctx.globalCompositeOperation = 'destination-in';
+    ctx.drawImage(m, 0, 0);
+    ctx.restore();
+  } catch (_e) { /* no canvas filter — hard edge, same as before */ }
 }
 
 window.__mockupDraw = function () {
