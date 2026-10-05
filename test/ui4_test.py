@@ -89,6 +89,27 @@ def main():
         if geo['alignN'] != 6:
             flags.append('align needs 6 buttons, got %d' % geo['alignN'])
 
+        # (3c) #2 hardening: non-finite numeric input must not poison state.
+        # input[type=number] already rejects free text, but an exponent-overflow
+        # value ("1e9999") parses to Infinity -> must be ignored, not stored.
+        p.evaluate('''()=>{
+          for(const id of ['cxIn','cyIn','rotIn']){
+            const el=document.getElementById(id); el.value='1e9999';
+            el.dispatchEvent(new Event('input', {bubbles:true}));
+          }}''')
+        p.wait_for_timeout(150)
+        nums = p.evaluate("()=>({cx:state.img.cx, cy:state.img.cy, w:state.img.w, rot:state.img.rot})")
+        for k, v in nums.items():
+            if not isinstance(v, (int, float)) or v != v or abs(v) == float('inf'):
+                flags.append('NaN/Inf poison via %s: %r' % (k, v))
+        p.fill('#wIn', '99999')
+        p.wait_for_timeout(120)
+        w = p.evaluate("()=>state.img.w")
+        if not (5 <= w <= 600):
+            flags.append('wIn clamp broken: %r' % w)
+        p.fill('#wIn', '80')
+        p.wait_for_timeout(100)
+
         # (4) height-fit: selected layer height == wrap.h (w*aspect)
         p.evaluate("()=>{const d=activeDesign(); state.activeLayer=d.layers.length-1; state.sel=[state.activeLayer]; syncActive&&syncActive();}")
         p.click('#hfitBtn')

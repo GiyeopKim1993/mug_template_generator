@@ -69,6 +69,7 @@ for(const k of Object.keys(MARK_DATA)){
   im.src = MARK_DATA[k];
   MARK_IMGS[k] = im;
 }
+function esc(s){ return String(s).replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c])); }
 function dataUrlBytes(u){
   const b = atob(u.slice(u.indexOf(',')+1));
   const a = new Uint8Array(b.length);
@@ -928,21 +929,25 @@ function syncControls(){
 }
 /* control-bar numeric fields (Illustrator-style X/Y/W/°) */
 $('#cxIn').addEventListener('input', e=>{
-  if(!state.img || e.target.value==='') return;
-  state.img.cx = +e.target.value; scheduleDraws();
+  const v=+e.target.value;
+  if(!state.img || e.target.value==='' || !Number.isFinite(v)) return;
+  state.img.cx = v; scheduleDraws();
 });
 $('#cyIn').addEventListener('input', e=>{
-  if(!state.img || e.target.value==='') return;
-  state.img.cy = +e.target.value; scheduleDraws();
+  const v=+e.target.value;
+  if(!state.img || e.target.value==='' || !Number.isFinite(v)) return;
+  state.img.cy = v; scheduleDraws();
 });
 $('#wIn').addEventListener('input', e=>{
-  if(!state.img || e.target.value==='') return;
-  state.img.w = Math.min(600, Math.max(5, +e.target.value));
+  const v=+e.target.value;
+  if(!state.img || e.target.value==='' || !Number.isFinite(v)) return;
+  state.img.w = Math.min(600, Math.max(5, v));
   markW(); syncControls(); scheduleDraws();
 });
 $('#rotIn').addEventListener('input', e=>{
-  if(!state.img || e.target.value==='') return;
-  setRot(Math.min(180, Math.max(-180, +e.target.value)));
+  const v=+e.target.value;
+  if(!state.img || e.target.value==='' || !Number.isFinite(v)) return;
+  setRot(Math.min(180, Math.max(-180, v)));
 });
 $('#rotIn').addEventListener('change', rotToastChange);
 $('#scaleR').addEventListener('input', e=>{
@@ -960,7 +965,7 @@ $('#rotR').addEventListener('change', rotToastChange);
 function renderDesignSel(){ try{ adCheckDesigns(); }catch(e){}
   const sel=$('#designSel');
   sel.innerHTML = state.designs.map((d,i)=>
-    `<option value="${i}" ${i===state.activeDesign?'selected':''}>${d.name} · ${d.layers.length}레이어</option>`
+    `<option value="${i}" ${i===state.activeDesign?'selected':''}>${esc(d.name)} · ${d.layers.length}레이어</option>`
   ).join('');
 }
 function switchDesign(i){
@@ -1012,7 +1017,7 @@ function renderLayers(){
     const l=dsg.layers[vi];
     html += `<li data-i="${vi}" class="${vi===state.activeLayer?'on':''}${state.sel.includes(vi)?' sel':''}${l.visible?'':' hidden-layer'}">
       <button class="lbtn eye" data-act="eye" title="보이기/숨기기">${l.visible?'👁':'🚫'}</button>
-      <span class="lyr-name">${l.name}</span>
+      <span class="lyr-name">${esc(l.name)}</span>
       <button class="lbtn" data-act="up" title="위로 (위에 표시)" ${vi===dsg.layers.length-1?'disabled':''}>▲</button>
       <button class="lbtn" data-act="down" title="아래로 (아래에 표시)" ${vi===0?'disabled':''}>▼</button>
       <button class="lbtn" data-act="del" title="레이어 삭제">✕</button>
@@ -1112,7 +1117,7 @@ function renderCopyDesigns(){
   _cdSig = sig;
   $('#copyDesignSel').innerHTML = state.copyDesign.map((di,i)=>
     `<span class="inline"><span class="kv">배치${i+1}</span><select class="cdsel" data-i="${i}">`+
-    state.designs.map((dd,j)=>`<option value="${j}" ${j===di?'selected':''}>${dd.name}</option>`).join('')+
+    state.designs.map((dd,j)=>`<option value="${j}" ${j===di?'selected':''}>${esc(dd.name)}</option>`).join('')+
     `</select></span>`).join('');
 }
 $('#copyDesignSel').addEventListener('change', e=>{
@@ -1830,7 +1835,7 @@ function renderDrafts(){
     const n=Math.max(1, Math.min(99, d.n||1));
     return `<li data-i="${i}">
       ${d.thumb?`<img src="${d.thumb}" alt="">`:'<span class="nothumb">📄</span>'}
-      <div class="meta"><b>${d.name}</b>
+      <div class="meta"><b>${esc(d.name)}</b>
         <span>${d.wrap.w}×${d.wrap.h} · ${d.mode==='cut'?'재단':'마크'} · ${nlay}레이어 · ${hm}</span></div>
       <span class="cnt-wrap"><input class="ncount num" type="number" min="1" max="99" step="1" value="${n}" data-n title="배치 개수 (전체 내보내기 시 이 수만큼 최소 용지에 배치)">개</span>
       <button class="lbtn" data-act="load" title="불러오기">⤴</button>
