@@ -32,7 +32,13 @@ function applyDesignTexture() {
     const src = designCanvas(state.activeDesign);          // flat wrap artwork
     if (!src) return;
     if (tex) tex.dispose();
-    tex = new THREE.CanvasTexture(src);
+    // 프리뷰 전용: 디자인을 흰 바탕에 합성 (투명 영역이 검정으로 보이는 것 방지 — 인쇄 경로는 불변)
+    const comp = document.createElement('canvas');
+    comp.width = src.width; comp.height = src.height;
+    const cx = comp.getContext('2d');
+    cx.fillStyle = '#ffffff'; cx.fillRect(0, 0, comp.width, comp.height);
+    cx.drawImage(src, 0, 0);
+    tex = new THREE.CanvasTexture(comp);
     tex.flipY = false;                                     // glTF UV convention
     tex.colorSpace = THREE.SRGBColorSpace;
     tex.needsUpdate = true;
@@ -89,7 +95,7 @@ async function openModelModal() {
       const d2 = new THREE.DirectionalLight(0xcfe0ff, 0.5); d2.position.set(-4, 2, -3); scene.add(d2);
       root = new THREE.Group(); scene.add(root);
       const loader = new GLTFLoaderCls();
-      loader.load('assets/mug.glb',
+      loader.load('assets/mug.glb?v=20261005m',
         (g) => {
           root.clear();
           root.add(g.scene);

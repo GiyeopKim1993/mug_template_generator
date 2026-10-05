@@ -1,0 +1,5 @@
+3D model assets
+===============
+mug.glb — “standard 11 oz ceramic mug” / “real sublimation wrap” geometry
+  Source: github.com/IbanezCamilo/mug-editor (MIT License)
+  Copyright (c) IbanezCamilo — used under MIT License.
