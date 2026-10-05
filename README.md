@@ -1,6 +1,6 @@
 # 11oz 머그컵 템플릿 메이커
 
-브라우저에서만 동작하는 정적 웹앱입니다 (서버·전송 없음, 저장·내보내기 모두 브라우저 안에서만 처리). 구조는 `index.html` + `js/` + `styles.css` + `assets/`이며, **3D 렌더링은 브라우저 모듈 제한 때문에 http(s)에서만** 동작합니다 (`file://` 는 안내 문구로 대체).
+브라우저에서만 동작하는 정적 웹앱입니다 (서버·전송 없음, 저장·내보내기 모두 브라우저 안에서만 처리). 구조는 `index.html` + `js/`(`store`·`export` 데이터/파이프라인, 역할 슬라이스 `design-core`·`stage3d`·`editor-canvas`·`editor-ops`·`editor-preview`·`support`·`app` 부트, `i18n`·`mockup`, 3D `model-viewer`+`mv-boot`) + `styles.css` + `assets/`이며, **3D 렌더링은 브라우저 모듈 제한 때문에 http(s)에서만** 동작합니다 (`file://` 는 안내 문구로 대체).
 
 - **작업창 + 우측 레일 레이아웃** — 좌: 큰 작업창(2D 편집 · 템플릿 · 디자인/정렬/크롭) / 우: 레일(작은 렌더링 창 → 레이어 → 출력설정) — 1280px 미만 레일 360px, 980px 미만 단일 컬럼
 - **렌더링 창 클릭 = 확대 모달** — 레일 상단의 작은 3D 렌더링을 클릭하면 모달에서 크게 보기 (더블클릭은 취소+뷰 리셋, ESC/바깥 클릭으로 닫기)
@@ -44,7 +44,7 @@
 
 ```bash
 cd test
-node unit_test.js   # 순수 함수 단위 38 assertions (js/pure.js, DOM 프리)
+node unit_test.js   # 순수 함수 단위 50 assertions (js/pure.js, DOM 프리)
 python3 e2e.py      # Playwright e2e: 스크린샷 + PDF 다운로드 + 노치/회전/미러 픽셀 검증
 python3 paths_test.py     # 3D/에디터/배치/모달 전 경로 (스테이지 픽셀 + 다운로드)
 python3 mug3d_test.py     # GLB 스테이지 계약 (WebGL·본체 단독 인쇄·오빗·모달·목업)

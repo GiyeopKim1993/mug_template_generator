@@ -51,3 +51,12 @@
   3. 검증: pypdfium2로 흰 배경 합성 시 기존 렌더와 동일해야 함(알파 영역=무잉크), interior·e2e·r5·savepanel 게이트 + 참고 PDF 3장 겹침 0 유지.
 - **위험**: buildPdf sync→async 시 unit 테스트 호출부 정정 필요; 페이지 크기 증가 추적.
 - **⚠ 요구 개정 (2026-10-05)**: 위 ② "순백 전부 알파"는 **오해석으로 폐기**. 정확한 요구 = **알파는 소스에 데이터 없는(투명) 영역만**; CMYK(0,0,0,0) 순백은 유효 데이터 → alpha 255 유지. 레이어 `W` 토글·`knockCanvas` 화이트 키링 전부 삭제, `pdfArtRaster` 알파 = `src alpha < 16`만 0.
+
+## 6. R-리팩토링 4단계 (#4, 2026-10-06) — 每 단계 배터리 18 → 커밋
+- **R-1 `a8e0827` 역할별 분할**: `js/app.js` 1,792행 → **design-core / stage3d / editor-canvas / editor-ops / editor-preview / support / app(부트)** 7슬라이스. classic script 연속 슬라이싱 = 전역 가시성·실행순서 보존(파일러간 top-level 실행 순서 동일). 부수 수정: 마크 data-URL `onload → drawPagePrev()` 레이스 제거(선언 전 발화 가능 → 부트 시점 디코드로 이동, 5회 연속 스트레스 0에러).
+- **R-2 `5307dc1` 중복·데드코드**: `segTransform(x,y,h,or)` (내부 4중복 인라인 폐기: buildDxf·buildSvg·support셀·cutTransform) + `wrapSegsToPts` (export/support 컷 아웃라인 매퍼 문자 그대로 중복 통합) → pure.js 공유화. 상단 전역 미사용 식별자 0(스캔), 동일 함수 몸체 중복 0.
+- **R-3 `583646f` 재배치·정규화**: `composeArtFlat`→design-core(래스터 = drawArtwork 곁), `composePageArt`·`exportPdf`·`computeImposedPages`→export.js(파이프라인 본거지), support.js = drafts·support·ads 전용. 전 슬라이스 **역할+로드순서 헤더** 정비(stage3d "pure canvas 2D" 오역 교정, support "PDF export" 오표기 교정), 인라인 mv 로더 → `js/mv-boot.js`, index.html 스크립트 태그 그룹 주석화.
+- **R-4**: 이 문서 + README 반영, pure 공유 히어러퍼 단위 테스트 추가(unit 38→46).
+- **로드 순서 (index.html)**: fcm-lib → pure → config → store → export → design-core → stage3d → editor-canvas → editor-ops → editor-preview → support → app → i18n → mockup → mv-boot(3D, http only).
+- 게이트: 4단계 모두 배터리 18/18 GREEN 후 push.
+

@@ -6,13 +6,16 @@ const fs = require('fs');
 const path = require('path');
 
 const pureCode = fs.readFileSync(path.join(__dirname, '..', 'js', 'pure.js'), 'utf8');
-const _api = new Function(pureCode + '\nreturn {Pure, buildDxf, buildSvg, wrapDxfSegs, resolveCellSpot, rectsOverlap, markZones};')();
+const _api = new Function(pureCode + '\nreturn {Pure, buildDxf, buildSvg, wrapDxfSegs, resolveCellSpot, rectsOverlap, markZones, segTransform, wrapSegs, wrapSegsToPts};')();
 const Pure = _api.Pure;
 const buildDxf = _api.buildDxf;
 const buildSvg = _api.buildSvg;
 const resolveCellSpot = _api.resolveCellSpot;
 const rectsOverlap = _api.rectsOverlap;
 const markZones = _api.markZones;
+const segTransform = _api.segTransform;
+const wrapSegs = _api.wrapSegs;
+const wrapSegsToPts = _api.wrapSegsToPts;
 
 let failures = 0, passes = 0;
 function ok(cond, msg) {
@@ -187,6 +190,39 @@ console.log('[buildDxf/buildSvg]');
   ok(b1 && bzones.every(z => !rectsOverlap({x:b1.x, y:b1.y, w:87, h:205}, z)),
      'resolve: brother cell clears all 4 bullseye zones');
 }
+/* ---------------- R-2 shared helpers: segTransform / wrapSegsToPts ---------------- */
+{
+  const eq=(a,b)=> a[0]===b[0] && a[1]===b[1];
+  // horizontal: pure translation, never stretched
+  const Th = segTransform(10, 20, 205, 'h');
+  ok(eq(Th(0,0), [10,20]), 'segT h: origin translates');
+  ok(eq(Th(50,70), [60,90]), 'segT h: mid translates 1:1 (no scale)');
+  // vertical: true 90° rotation — design-top -> page-left, area preserved
+  const Tv = segTransform(10, 20, 205, 'v');
+  ok(eq(Tv(0,0), [10,225]), 'segT v: (0,0) -> (x, y+h)');
+  ok(eq(Tv(0,205), [215,225]), 'segT v: (0,h) -> (x+h, y+h)  [design left edge sweeps cell bottom]');
+  ok(eq(Tv(50,70), [80,175]), 'segT v: (50,70) -> (x0+y, y0+h-x)');
+  // never stretched: rectangle area is invariant under both orientations
+  const area=(T)=>{ const p=[T(0,0),T(10,0),T(10,5),T(0,5)];
+    return Math.abs((p[1][0]-p[0][0])*(p[3][1]-p[0][1]) - (p[1][1]-p[0][1])*(p[3][0]-p[0][0])); };
+  ok(area(Th)===50 && area(Tv)===50, 'segT: area invariant (no stretch) h & v');
+  // wrapSegsToPts: every segment routed through T (mm->mm) then P (mm->pt)
+  const segs = wrapSegs(100, 50, false);
+  const T = (x,y)=>[x+1, y+2];
+  const P = (x,y)=>[x*2, y*3];
+  const pts = wrapSegsToPts(100, 50, false, T, P);
+  ok(pts.length === segs.length, 'wrapSegsToPts: one output per input segment');
+  ok(pts[0][0]==='M' && pts[0][1]===2 && pts[0][2]===6, 'pts M: T(0,0)=(1,2) -> P=(2,6)');
+  ok(pts[1][0]==='L' && pts[1][1]===202 && pts[1][2]===6, 'pts L: T(100,0)=(101,2) -> P=(202,6)');
+  ok(pts[2][0]==='L' && pts[2][1]===202 && pts[2][2]===156, 'pts L: T(100,50) -> P=(202,156)');
+  const last = pts[pts.length-1];
+  ok(last[0]==='L' && last[1]===2 && last[2]===156, 'pts closes at left edge');
+  // notched outline: cubic tuples stay 7-long (C,c1x,c1y,c2x,c2y,ex,ey)
+  const pn = wrapSegsToPts(100, 50, true, (x,y)=>[x,y], (x,y)=>[x,y]);
+  ok(pn.every(sg => (sg[0]==='M'||sg[0]==='L') ? sg.length===3 : (sg[0]==='C' && sg.length===7)),
+     'wrapSegsToPts: tuple arity per command');
+}
+
 /* ---------------- summary ---------------- */
 console.log(`\n${passes} passed, ${failures} failed`);
 process.exit(failures ? 1 : 0);
