@@ -39,12 +39,12 @@ async def main():
         page = await browser.new_page(viewport={'width': 1440, 'height': 980}, device_scale_factor=1)
         page.on('console', lambda m: errors.append(f'{m.type}: {m.text}') if m.type == 'error' else None)
         page.on('pageerror', lambda e: errors.append(f'pageerror: {e}'))
-        await page.goto('file://' + os.path.abspath(os.path.join(BASE, '..', 'index.html')))
+        await page.goto('http://localhost:8080/index.html')   # GLB stage needs http(s) (module imports)
         await page.wait_for_timeout(1400)
         # content checks must be rotation-phase-independent: park the turntable
-        # facing the design (th=-180deg puts the wrap front to camera; th=0 is the back)
+        # facing the design (GLB yaw convention: th=0 = design front — verified 2026-10-05)
         await page.uncheck('#autoSpin')
-        await page.evaluate("mug.th = -Math.PI; mug.spinVel = 0;")
+        await page.evaluate("mug.th = 0; mug.spinVel = 0;")
         n = 0
         async def chk3d(label, min_content=2.0, max_streak=99):
             nonlocal n
@@ -79,8 +79,10 @@ async def main():
             await page.wait_for_timeout(80)
 
         # ---------- P1 upload ----------
-        await upload('test.jpg'); await chk3d('upload-default')
-        await upload('test.jpg'); await chk3d('upload-2nd-layer')
+        # test.jpg is portrait 174x410 -> contain-fit yields a narrow band on the GLB
+        # stage (was a much larger share of the old 2D canvas) -> baseline rebased.
+        await upload('test.jpg'); await chk3d('upload-default', min_content=0.8)
+        await upload('test.jpg'); await chk3d('upload-2nd-layer', min_content=0.8)
 
         # ---------- P2 mouse editor paths ----------
         eb = await page.locator('#editor').bounding_box()

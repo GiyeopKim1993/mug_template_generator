@@ -61,7 +61,6 @@
     '렌더링':                 { ja: 'レンダリング', en: 'Rendering' },
     '클릭해서 크게 보기':     { ja: 'クリックで拡大', en: 'Click to enlarge' },
     '턴테이블':               { ja: 'ターンテーブル', en: 'Turntable' },
-    '3D 모델 보기 (GLB)':     { ja: '3Dモデルを見る (GLB)', en: 'View 3D model (GLB)' },
     '내보내기':                { ja: '書き出し', en: 'Export' },
     '내보내기…':               { ja: '書き出し…', en: 'Export…' },
     '현재 디자인':              { ja: '現在のデザイン', en: 'Current design' },
@@ -71,7 +70,6 @@
     '범위':                    { ja: '範囲', en: 'Scope' },
     '용지':                    { ja: '用紙', en: 'Paper' },
     '미리보기':                 { ja: 'プレビュー', en: 'Preview' },
-    '3D 모델 미리보기':        { ja: '3Dモデルプレビュー', en: '3D model preview' },
     '느리게':                 { ja: 'ゆっくり', en: 'Slow' },
     '보통':                   { ja: '普通', en: 'Medium' },
     '빠르게':                 { ja: '速い', en: 'Fast' },
@@ -82,6 +80,7 @@
 
     /* ---- layers ---- */
     '레이어':                 { ja: 'レイヤー', en: 'Layers' },
+    '실사 목업':               { ja: 'フォトリアルモックアップ', en: 'Photo mockup' },
     '위=화면 위 · 클릭=선택 · Shift+클릭=복수(그룹 정렬)':
       { ja: '上=画面上 · クリック=選択 · Shift+クリック=複数（グループ整列）', en: 'Top=front · Click=select · Shift+click=multi (group align)' },
     '이미지를 업로드하면 여기에 레이어가 생깁니다':

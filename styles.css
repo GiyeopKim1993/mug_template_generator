@@ -340,3 +340,10 @@
 #ctxMenu button:disabled{opacity:.35; cursor:not-allowed; background:none}
 
 footer a{color:#8fb4ff; text-decoration:none} footer a:hover{text-decoration:underline}
+
+/* photoreal mockup card (#10) */
+#photoCard .ph-head{display:flex; align-items:baseline; gap:8px; margin-bottom:8px}
+#photoCard .ph-head b{font-size:13px}
+#photoCard .ph-head .sub{font-size:11px; color:var(--sub)}
+#photoHome{position:relative; border-radius:10px; overflow:hidden; background:#000}
+#mockup{display:block; width:100%}

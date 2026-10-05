@@ -3,3 +3,6 @@
 mug.glb — “standard 11 oz ceramic mug” / “real sublimation wrap” geometry
   Source: github.com/IbanezCamilo/mug-editor (MIT License)
   Copyright (c) IbanezCamilo — used under MIT License.
+mockup.jpg — “Coffee Mug (Unsplash).jpg” (CC0 / Public Domain dedication)
+  Source: Wikimedia Commons — File:Coffee Mug (Unsplash).jpg
+  Used as the photorealistic mockup base (design composited at runtime).

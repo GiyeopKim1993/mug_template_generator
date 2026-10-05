@@ -151,351 +151,26 @@ function rebuildTexture(){
 /* =========================================================================
    3D mug renderer (pure canvas 2D, cylinder texture mapping)
    ========================================================================= */
-const stage = $('#mug3d'), sctx = stage.getContext('2d');
+const stageBox = $('#stage');   // pointer/keyboard host — WebGL #mug3d canvas is mounted by model-viewer.js
 const PITCH0 = Math.asin(0.16);            // default camera elevation (ry = r*0.16 look)
 const mug = { th: 1.22, pitch:PITCH0, roll:0, zoom:1, panX:0, panY:0,
               auto:true, speed:0.20, drag:false, mode:'rot', lastX:0, lastY:0, spinVel:0 };
 let dpr = window.devicePixelRatio||1;
 
 function sizeStage(){
-  const r = stage.parentElement.getBoundingClientRect();
   dpr = window.devicePixelRatio||1;
-  stage.width = Math.round(r.width*dpr);
-  stage.height = Math.round(r.height*dpr);
+  if(window.__mvSize) __mvSize();
 }
 window.addEventListener('resize', ()=>{ sizeStage(); clampView(); layoutEditor(); });
 
 /* ---- view clamp: keep the WHOLE mug (transfer included) inside the canvas.
    Caps zoom to the fit level for the current pitch/roll, clamps pan so the
    mug can never be dragged/cropped off-screen (roll/pitch re-checked too). */
-function viewBounds(){
-  const W = stage.width, H = stage.height;
-  const scale0 = Math.min(W/2.6, H/2.4);
-  const r = 0.52*scale0;
-  const sp = Math.sin(mug.pitch), cp = Math.cos(mug.pitch);
-  const bodyH = r*2*(95/82), bodyHs = bodyH*cp, ry = r*sp;
-  const topE = bodyHs*0.5 - 0.05*r + ry;            // objY -> rim top
-  const botE = bodyHs*0.5 + 0.05*r + ry + 0.44*r;   // objY -> shadow bottom
-  return { w0: 3*r, h0: topE + botE };               // w: body + handle both sides
-}
-function clampView(){
-  const W = stage.width, H = stage.height;
-  const d = dpr || 1, m = 12*d;
-  const { w0, h0 } = viewBounds();
-  const cr = Math.cos(Math.abs(mug.roll)), sr = Math.sin(Math.abs(mug.roll));
-  const bw = w0*cr + h0*sr, bh = w0*sr + h0*cr;      // rolled bbox at zoom 1
-  const zmax = Math.max(0.4, Math.min(3.2, (W-2*m)/bw, (H-2*m)/bh));
-  mug.zoom = Math.max(0.4, Math.min(mug.zoom, zmax));
-  const hw = bw*mug.zoom/2, hh = bh*mug.zoom/2;
-  const pxMax = Math.max(0, W/2 - hw - m)/d, pyMax = Math.max(0, H/2 - hh - m)/d;
-  mug.panX = Math.max(-pxMax, Math.min(mug.panX, pxMax));
-  mug.panY = Math.max(-pyMax, Math.min(mug.panY, pyMax));
-}
+function clampView(){ if(window.__mvClamp) __mvClamp(); }
 
-let _dithTile=null;
-function ditherTile(){
-  if(_dithTile) return _dithTile;
-  const c=document.createElement('canvas'); c.width=c.height=64;
-  const g=c.getContext('2d'); const im=g.createImageData(64,64);
-  for(let i=0;i<im.data.length;i+=4){ const v=96+((Math.random()*64)|0);   // mid-gray ±32
-    im.data[i]=im.data[i+1]=im.data[i+2]=v; im.data[i+3]=255; }
-  g.putImageData(im,0,0); _dithTile=c; return c;
-}
-function drawHandle(ctx, cx, top, r, Hb, th, front, y1, y2){
-  // ── reference-style ceramic ear handle (sublimation mug model):
-  //   · thick band ≈11–13mm, D-bowed free edge, flush attachments (no ball caps)
-  //   · smooth silhouette: stroke the centreline first (round caps), then paint
-  //     roundness INSIDE it with cross-section gradients + specular + contact AO
-  //   · projection: x = ax + d·sin(th), y = leg + d·cos(th)·sin(pitch)
-  const sn = Math.sin(th), cs = Math.cos(th);
-  if(front && cs <= 0) return;
-  if(!front && cs > 0) return;
-  if(Math.abs(sn) < 0.02 && Math.abs(cs) < 0.02) return;
-  const sp = Math.sin(mug.pitch);
-  const h  = r*0.74;                       // protrusion ≈ 30mm @82mm dia body
-  const tr = Math.max(r*0.155, 8*dpr);     // half-band ≈ 6.4mm → ~13mm handle
-  const N  = 56;
-  const P = [], NL = [];
-  for(let i=0; i<=N; i++){
-    const t = i/N;
-    const d = h * Math.pow(Math.sin(Math.PI*t), 0.55);   // ear: flat outer edge
-    // tuck the ends INTO the body so the round cap merges with the silhouette
-    const k = Math.max(0, 1 - Math.min(t, 1-t)*7);       // 1 at ends → 0 by t≈0.14
-    const radial = r + d - tr*0.85*k;
-    P.push({ x: cx + radial*sn,
-             y: y1 + (y2-y1)*t + d*cs*sp, d: d, t: t, k: k });
-  }
-  for(let i=0; i<=N; i++){
-    const a = P[Math.max(0,i-1)], b = P[Math.min(N,i+1)];
-    const tx = b.x-a.x, ty = b.y-a.y, L = Math.hypot(tx,ty) || 1;
-    NL.push({x:-ty/L, y:tx/L, tx:tx/L, ty:ty/L});
-  }
-  const path = ()=>{
-    ctx.beginPath();
-    ctx.moveTo(P[0].x, P[0].y);
-    for(let i=1; i<=N; i++) ctx.lineTo(P[i].x, P[i].y);
-  };
-  const LX = -0.55, LY = -0.83;            // light from upper-left
-  ctx.save();
-  // 1) contact shadow (two soft strokes → sits ON the ceramic)
-  ctx.lineCap='round'; ctx.lineJoin='round';
-  path(); ctx.strokeStyle='rgba(35,40,52,0.10)'; ctx.lineWidth=tr*3.0;
-  ctx.save(); ctx.translate(r*0.05, r*0.06); ctx.stroke(); ctx.restore();
-  path(); ctx.strokeStyle='rgba(35,40,52,0.16)'; ctx.lineWidth=tr*2.45;
-  ctx.save(); ctx.translate(r*0.03, r*0.035); ctx.stroke(); ctx.restore();
-  // 2) base stroke — smooth union silhouette, round caps flush with the body
-  path(); ctx.strokeStyle = front ? '#edebe7' : '#dbd9d5'; ctx.lineWidth = tr*2;
-  ctx.stroke();
-  // 2b) end flares — short wider strokes at the legs → ceramic join, no knobs
-  ctx.strokeStyle = front ? '#e9e7e3' : '#d7d5d1'; ctx.lineWidth = tr*2.7;
-  for(const [a,bb] of [[0, Math.max(1,Math.round(N*0.075))], [N-Math.max(1,Math.round(N*0.075)), N]]){
-    ctx.beginPath();
-    ctx.moveTo(P[a].x, P[a].y);
-    for(let i=a+1; i<=bb; i++) ctx.lineTo(P[i].x, P[i].y);
-    ctx.stroke();
-  }
-  // 3) cross-section shading inside the silhouette (0.96 keeps a clean rim)
-  const tw = tr*0.96;
-  for(let i=0; i<N; i++){
-    const a=P[i], b=P[i+1], na=NL[i], nb=NL[i+1];
-    const mx=(a.x+b.x)/2, my=(a.y+b.y)/2;
-    let nm={x:(na.x+nb.x)/2, y:(na.y+nb.y)/2};
-    const nl=Math.hypot(nm.x,nm.y)||1; nm={x:nm.x/nl, y:nm.y/nl};
-    const s = (nm.x*LX + nm.y*LY) >= 0 ? 1 : -1;
-    const g = ctx.createLinearGradient(
-      mx - nm.x*tw*s, my - nm.y*tw*s,
-      mx + nm.x*tw*s, my + nm.y*tw*s);
-    const ao = Math.min(1,(a.d+b.d)/(2*h));
-    const base = front ? 0 : -8;
-    const mk = (v)=>`rgb(${Math.round(v)},${Math.round(v-3)},${Math.round(v-7)})`;
-    g.addColorStop(0,    mk(250 + base + ao*4));
-    g.addColorStop(0.45, mk(238 + base + ao*4));
-    g.addColorStop(1,    mk(196 + base + ao*6));
-    ctx.beginPath();
-    ctx.moveTo(a.x - na.x*tw, a.y - na.y*tw);
-    ctx.lineTo(a.x + na.x*tw, a.y + na.y*tw);
-    ctx.lineTo(b.x + nb.x*tw + nb.tx*0.9, b.y + nb.y*tw + nb.ty*0.9);
-    ctx.lineTo(b.x - nb.x*tw + nb.tx*0.9, b.y - nb.y*tw + nb.ty*0.9);
-    ctx.closePath();
-    ctx.fillStyle = g;
-    ctx.fill();
-    // 4) specular streak along the light-facing crest (fades at the legs)
-    const lit = s > 0 ? 1 : -1;
-    const px0 = a.x + nm.x*tw*0.40*lit, py0 = a.y + nm.y*tw*0.40*lit;
-    const pw = tw*0.30;
-    const alpha = 0.50 * Math.pow(Math.sin(Math.PI*((a.t+b.t)/2)), 0.6);
-    if(alpha > 0.03){
-      ctx.beginPath();
-      ctx.moveTo(px0 - nm.x*pw/2, py0 - nm.y*pw/2);
-      ctx.lineTo(px0 + nm.x*pw/2, py0 + nm.y*pw/2);
-      const bx = b.x + nb.x*tw*0.40*lit + nb.tx*0.9,
-            by = b.y + nb.y*tw*0.40*lit + nb.ty*0.9;
-      ctx.lineTo(bx + nb.x*pw/2, by + nb.y*pw/2);
-      ctx.lineTo(bx - nb.x*pw/2, by - nb.y*pw/2);
-      ctx.closePath();
-      ctx.fillStyle = `rgba(255,255,255,${alpha.toFixed(3)})`;
-      ctx.fill();
-    }
-  }
-  // 5) attachment AO — soft crease where the legs meet the body
-  for(const idx of [0, N]){
-    const p = P[idx], n = NL[idx];
-    const rg = ctx.createRadialGradient(
-      p.x + n.x*tr*0.2, p.y + n.y*tr*0.2, tr*0.4,
-      p.x, p.y, tr*2.0);
-    rg.addColorStop(0, 'rgba(70,74,86,0.20)');
-    rg.addColorStop(1, 'rgba(70,74,86,0)');
-    ctx.beginPath(); ctx.arc(p.x, p.y, tr*2.0, 0, Math.PI*2);
-    ctx.fillStyle = rg; ctx.fill();
-  }
-  ctx.restore();
-}
-
-function renderMug(t){
-  const W = stage.width, H = stage.height;
-  sctx.clearRect(0,0,W,H);
-  const scale = Math.min(W/2.6, H/2.4) * mug.zoom;
-  const r = scale*0.52;                    // body radius px
-  const bodyH = (r*2) * (95/82);           // 11oz proportions: 95mm tall, 82mm diameter
-  const sp = Math.sin(mug.pitch), cp = Math.cos(mug.pitch);
-  const cx = W/2 + mug.panX*dpr;
-  const objY = H/2 + mug.panY*dpr;
-  const bodyHs = bodyH*cp;                 // vertical foreshortening from camera elevation
-  const ry = r*sp;                         // rim ellipse semi-minor = camera elevation
-  const O  = objY - bodyHs*0.5 + r*0.05;   // screen y of cylinder TOP plane (depth 0)
-  const yb = O + bodyHs;                   // screen y of cylinder BOTTOM plane (depth 0)
-
-  // roll (Ctrl+drag): rotate the whole object around its centre
-  sctx.save();
-  sctx.translate(cx, objY); sctx.rotate(mug.roll); sctx.translate(-cx, -objY);
-
-  // ground shadow
-  const shY = yb + ry + r*0.14;
-  sctx.save();
-  const sh = sctx.createRadialGradient(cx, shY, r*0.1, cx, shY, r*1.35);
-  sh.addColorStop(0,'rgba(0,0,0,0.42)'); sh.addColorStop(1,'rgba(0,0,0,0)');
-  sctx.fillStyle=sh;
-  sctx.beginPath(); sctx.ellipse(cx, shY, r*1.35, r*0.3, 0,0,Math.PI*2); sctx.fill();
-  sctx.restore();
-
-  const th = mug.th;
-  const cosH = Math.cos(th);
-
-  // ----- body path: straight sides, front arc of the bottom rim -----
-  function bodyPath(){
-    sctx.beginPath();
-    sctx.moveTo(cx-r, O);
-    sctx.lineTo(cx-r, yb);
-    sctx.ellipse(cx, yb, r, ry, 0, Math.PI, 0, true);   // near half of bottom circle
-    sctx.lineTo(cx+r, O);
-    sctx.closePath();
-  }
-
-  // ----- band (wrap) + handle leg heights, camera-elevation aware -----
-  const wrapHmm = state.wrap.h;
-  const dyTop = bodyH*((95-wrapHmm)/2)/95;              // world: top → band
-  const dyH   = bodyH*wrapHmm/95;                       // world band height
-  const zH = r*Math.cos(th)*sp;                         // depth shift of handle attachment
-  const legY1 = O + (dyTop + dyH*0.20)*cp + zH;         // notch row 1 (0.20·H)
-  const legY2 = O + (dyTop + dyH*0.80)*cp + zH;         // notch row 2 (0.80·H)
-  const bandY0 = O + dyTop*cp;                          // band top edge at depth 0
-  const bandHs = dyH*cp;                                // band height on screen
-
-  // ----- handle (behind) -----
-  if(cosH <= 0) drawHandle(sctx, cx, O, r, bodyHs, th, false, legY1, legY2);
-
-  // ----- body base (white ceramic) -----
-  sctx.save(); bodyPath(); sctx.clip();
-  sctx.fillStyle = '#f4f3f1'; sctx.fillRect(cx-r-2, O-ry-2, r*2+4, bodyHs+2*ry+6);
-
-  // ----- texture: per-column cylinder mapping with depth-arc top/bottom edges -----
-  // Uncovered seam zone = handle base width only (11° each side), so the wrap
-  // ends — and their notches — sit right AT the handle instead of ±36° away.
-  const GAP = 11;                                 // deg, half-width of handle zone
-  const span = 360 - 2*GAP;                       // deg covered by the texture
-
-  if(tex.width>0){
-    const TW = tex.width, TH = tex.height;
-    const step = Math.max(1, Math.floor(dpr));
-    const thDeg = th*180/Math.PI;
-    const toU = (angDeg)=>Pure.textureU(angDeg, thDeg, GAP);
-    // Collect columns, then draw each under a SMOOTH arc clip: the depth-arc
-    // jumps up to ~10px between neighbouring columns near the silhouette —
-    // that step edge sawtoothed into visible stripes (줄무늬) while rotating.
-    const cols = [];
-    for(let px=0; px < r*2; px += step){
-      const x0 = cx-r+px, x1 = x0+Math.min(step, r*2-px);
-      const s0 = (x0-cx)/r, s1 = (x1-cx)/r;
-      if(Math.abs(s0)>=1 || Math.abs(s1)>=1) continue;
-      const u0 = toU(Math.asin(Math.max(-1,Math.min(1,s0)))*180/Math.PI);
-      const u1 = toU(Math.asin(Math.max(-1,Math.min(1,s1)))*180/Math.PI);
-      if(u0==null || u1==null) continue;
-      let sx = Math.min(u0,u1)*TW;
-      let sw = Math.abs(u1-u0)*TW;
-      if(sx < 0) sx = 0;
-      if(sx > TW-0.6){ sx = TW-0.6; sw = 0.6; }   // keep last column at the seam edge
-      else { if(sw < 0.6) sw = 0.6; if(sx+sw > TW) sw = TW-sx; }
-      if(sw <= 0) continue;
-      // depth-aware vertical position — the print sits ON the cylinder, so its
-      // top/bottom edges arc (front dips toward viewer) like a real transfer
-      const sc = (s0+s1)/2;
-      const z = Pure.depthZ(sc, r);
-      cols.push({x0, x1, sx, sw, z});
-    }
-    if(cols.length){
-      sctx.save();
-      // smooth arc boundary (both band edges) as clip
-      sctx.beginPath();
-      const M = 160;
-      for(let i=0; i<=M; i++){
-        const sc = -1 + 2*i/M;
-        const z = Pure.depthZ(sc, r);
-        const y = bandY0 + z*sp - 1;
-        if(i===0) sctx.moveTo(cx + sc*r, y); else sctx.lineTo(cx + sc*r, y);
-      }
-      for(let i=M; i>=0; i--){
-        const sc = -1 + 2*i/M;
-        const z = Pure.depthZ(sc, r);
-        sctx.lineTo(cx + sc*r, bandY0 + z*sp + bandHs + 1);
-      }
-      sctx.closePath();
-      sctx.clip();
-      for(let i=0; i<cols.length; i++){
-        const c = cols[i];
-        // symmetric window — the arc can reach z of either neighbour
-        let zmin = c.z, zmax = c.z;
-        if(i > 0){ zmin = Math.min(zmin, cols[i-1].z); zmax = Math.max(zmax, cols[i-1].z); }
-        if(i < cols.length-1){ zmin = Math.min(zmin, cols[i+1].z); zmax = Math.max(zmax, cols[i+1].z); }
-        const w = (c.x1-c.x0)+0.6;
-        const yC = bandY0 + c.z*sp;               // content stays exactly in place
-        // window gaps filled with the texture's OWN edge row — seamless and
-        // no content stretch; the clip trims everything to the smooth arc
-        if(zmin < c.z){
-          sctx.drawImage(tex, c.sx, 0, c.sw, 1, c.x0, bandY0 + zmin*sp - 2, w, yC - (bandY0 + zmin*sp) + 2);
-        }
-        sctx.drawImage(tex, c.sx, 0, c.sw, TH, c.x0, yC, w, bandHs);
-        if(zmax > c.z){
-          sctx.drawImage(tex, c.sx, TH-1, c.sw, 1, c.x0, yC+bandHs, w, (zmax-c.z)*sp + 2);
-        }
-      }
-      sctx.restore();
-    }
-  }
-
-  // ----- shading: ONE light over print + ceramic (ink lives UNDER the glaze) -----
-  const g1 = sctx.createLinearGradient(cx-r, 0, cx+r, 0);
-  g1.addColorStop(0.00,'rgba(0,0,0,0.52)');
-  g1.addColorStop(0.10,'rgba(0,0,0,0.31)');
-  g1.addColorStop(0.30,'rgba(0,0,0,0.05)');
-  g1.addColorStop(0.42,'rgba(0,0,0,0.00)');
-  g1.addColorStop(0.72,'rgba(0,0,0,0.11)');
-  g1.addColorStop(0.90,'rgba(0,0,0,0.35)');
-  g1.addColorStop(1.00,'rgba(0,0,0,0.56)');
-  sctx.fillStyle=g1; sctx.fillRect(cx-r, O-ry, r*2, bodyHs+2*ry);
-  // glaze specular — soft gloss sweeping ACROSS the print
-  const g2 = sctx.createLinearGradient(cx-r*0.65, 0, cx-r*0.05, 0);
-  g2.addColorStop(0,'rgba(255,255,255,0)');
-  g2.addColorStop(0.5,'rgba(255,255,255,0.19)');
-  g2.addColorStop(1,'rgba(255,255,255,0)');
-  sctx.fillStyle=g2; sctx.fillRect(cx-r*0.65, O-ry, r*0.6, bodyHs+2*ry);
-  // faint secondary sheen (right) for glassy depth
-  const g5 = sctx.createLinearGradient(cx+r*0.34, 0, cx+r*0.68, 0);
-  g5.addColorStop(0,'rgba(255,255,255,0)');
-  g5.addColorStop(0.5,'rgba(255,255,255,0.085)');
-  g5.addColorStop(1,'rgba(255,255,255,0)');
-  sctx.fillStyle=g5; sctx.fillRect(cx+r*0.34, O-ry, r*0.34, bodyHs+2*ry);
-  // top ambient + bottom AO in ONE full-height gradient — split rects left
-  // visible horizontal seams where each gradient ended (the "가로줄" artifact)
-  const gA = sctx.createLinearGradient(0, O, 0, yb + ry);
-  gA.addColorStop(0,    'rgba(0,0,0,0.22)');
-  gA.addColorStop(0.12, 'rgba(0,0,0,0)');
-  gA.addColorStop(0.82, 'rgba(0,0,0,0)');
-  gA.addColorStop(1,    'rgba(0,0,0,0.20)');
-  sctx.fillStyle=gA; sctx.fillRect(cx-r, O-ry, r*2, bodyHs+2*ry);
-  // subtle dither grain — breaks 8-bit gradient banding on real GPUs
-  sctx.globalAlpha = 0.05; sctx.globalCompositeOperation = 'overlay';
-  sctx.fillStyle = sctx.createPattern(ditherTile(), 'repeat');
-  sctx.fillRect(cx-r, O-ry, r*2, bodyHs+2*ry);
-  sctx.globalCompositeOperation = 'source-over'; sctx.globalAlpha = 1;
-  sctx.restore();
-
-  // ----- rim & interior -----
-  sctx.save();
-  sctx.beginPath(); sctx.ellipse(cx, O, r*0.985, ry, 0, 0, Math.PI*2); sctx.clip();
-  const gi = sctx.createLinearGradient(0, O-ry, 0, O+ry);
-  gi.addColorStop(0,'#b9b4ac'); gi.addColorStop(0.45,'#e8e4dc'); gi.addColorStop(1,'#f7f5f1');
-  sctx.fillStyle=gi; sctx.fillRect(cx-r, O-ry, r*2, ry*2);
-  sctx.restore();
-  sctx.beginPath(); sctx.ellipse(cx, O, r, ry, 0, 0, Math.PI*2);
-  sctx.lineWidth = Math.max(1.5, r*0.045); sctx.strokeStyle='rgba(255,255,255,0.95)'; sctx.stroke();
-  sctx.beginPath(); sctx.ellipse(cx, O, r, ry, 0, 0, Math.PI*2);
-  sctx.lineWidth = Math.max(1, r*0.02); sctx.strokeStyle='rgba(120,124,132,0.55)'; sctx.stroke();
-
-  // ----- handle (front) -----
-  if(cosH > 0) drawHandle(sctx, cx, O, r, bodyHs, th, true, legY1, legY2);
-
-  sctx.restore();   // roll transform off
-}
+/* 2D fake-3D painter retired (2026-10-05): stage renders assets/mug.glb via
+   model-viewer.js (WebGL). Call name kept so loop3d/turntable stay unchanged. */
+function renderMug(t){ if(window.__mvDraw) __mvDraw(t); }
 
 /* turntable + flick momentum + free view (orbit / pan / roll / zoom) */
 let lastT = 0;
@@ -514,17 +189,18 @@ function loop3d(t){
 }
 
 let lastMoveT = 0;
-stage.addEventListener('pointerdown', e=>{
+stageBox.addEventListener('pointerdown', e=>{
+  if(e.target.closest && e.target.closest('.stage-ctrl')) return;   // spin controls keep native clicks (no capture/preventDefault)
   mug._dragDist=0;
   mug.drag = true;
   mug.mode = (e.button === 2 || e.shiftKey) ? 'pan'
            : (e.ctrlKey || e.metaKey) ? 'roll' : 'rot';
   mug.lastX = e.clientX; mug.lastY = e.clientY;
   mug.spinVel = 0; lastMoveT = performance.now();
-  stage.setPointerCapture(e.pointerId);
+  stageBox.setPointerCapture(e.pointerId);
   e.preventDefault();
 });
-stage.addEventListener('pointermove', e=>{
+stageBox.addEventListener('pointermove', e=>{
   if(!mug.drag) return;
   const now = performance.now();
   const dtm = Math.max(0.008, (now - lastMoveT)/1000); lastMoveT = now;
@@ -547,11 +223,11 @@ function endMugDrag(e){
   if(!mug.drag) return;
   mug.drag = false;
   if(mug.mode !== 'rot') mug.spinVel = 0;
-  try{ stage.releasePointerCapture(e.pointerId); }catch(_){}
+  try{ stageBox.releasePointerCapture(e.pointerId); }catch(_){}
 }
-stage.addEventListener('pointerup', endMugDrag);
-stage.addEventListener('pointercancel', endMugDrag);
-stage.addEventListener('wheel', e=>{
+stageBox.addEventListener('pointerup', endMugDrag);
+stageBox.addEventListener('pointercancel', endMugDrag);
+stageBox.addEventListener('wheel', e=>{
   e.preventDefault();
   mug.zoom = Math.max(0.4, mug.zoom * Math.exp(-e.deltaY*0.0011));
   clampView();   // zoom is capped at the level where the whole mug still fits
@@ -577,12 +253,13 @@ $('#spClose').addEventListener('click', closeSavePanel);
 document.getElementById('savePanel').addEventListener('click', e=>{ if(e.target.id==='savePanel') closeSavePanel(); });
 renderModal.addEventListener('click', e=>{ if(e.target===renderModal) closeRenderModal(); });
 document.addEventListener('keydown', e=>{ if(e.key==='Escape'){ closeRenderModal(); closeSavePanel(); } });
-stage.addEventListener('click', ()=>{
+stageBox.addEventListener('click', e=>{
+  if(e.target.closest && e.target.closest('.stage-ctrl')) return;   // spin controls never open the expand modal
   if(renderModal.classList.contains('open') || _rmTimer) return;
   if((mug._dragDist||0)>6) return;               // drag, not a click
   _rmTimer=setTimeout(()=>{ _rmTimer=null; openRenderModal(); }, 60);
 });
-stage.addEventListener('dblclick', ()=>{ clearTimeout(_rmTimer); _rmTimer=null; });
+stageBox.addEventListener('dblclick', ()=>{ clearTimeout(_rmTimer); _rmTimer=null; });
 
 /* ---------- print settings dialog ---------- */
 const printModal=$('#printModal');
@@ -613,8 +290,8 @@ document.addEventListener('keydown', e=>{
   else if(e.key==='c'||e.key==='C'){ e.preventDefault(); $('#cropBtn').click(); }
   else if(e.key==='Delete'){ if(state.img){ e.preventDefault(); $('#rmBtn').click(); } }
 });
-stage.addEventListener('contextmenu', e=>e.preventDefault());
-stage.addEventListener('dblclick', ()=>{
+stageBox.addEventListener('contextmenu', e=>e.preventDefault());
+stageBox.addEventListener('dblclick', ()=>{
   mug.zoom = 1; mug.panX = 0; mug.panY = 0; mug.pitch = PITCH0; mug.roll = 0;
   clampView();
 });
@@ -1113,7 +790,8 @@ $('#cropApply').addEventListener('click', async ()=>{
 let drawQueued=false;
 function scheduleDraws(){
   if(drawQueued) return; drawQueued=true;
-  requestAnimationFrame(()=>{ drawQueued=false; layoutEditor(); rebuildTexture(); drawPagePrev(); });
+  requestAnimationFrame(()=>{ drawQueued=false; layoutEditor(); rebuildTexture(); drawPagePrev();
+    if(window.__mockupDraw) __mockupDraw(); });   // photoreal mockup (#10) follows design ver
 }
 
 /* ---------- image loading ---------- */
