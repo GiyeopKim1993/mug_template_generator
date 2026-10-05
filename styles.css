@@ -108,8 +108,7 @@
   #renderCard .stage-hint{display:none}          /* long hint only in modal */
   /* layer multi-select (group align) */
   #layerList li.sel{box-shadow:inset 0 0 0 1.5px rgba(91,140,255,.75)}
-  #layerList .lbtn.ko.on{background:rgba(120,220,190,.22); color:#9fe8d8; box-shadow:inset 0 0 0 1px rgba(120,220,190,.5)}
-  /* drafts (임시 저장 목록) */
+    /* drafts (임시 저장 목록) */
   #draftBox{margin-top:10px; border:1px solid var(--line); border-radius:10px; background:var(--panel2); padding:6px 8px}
   #draftBox .dhead{display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--sub); font-weight:600}
   #draftBox .dhead .grow{flex:1}
@@ -338,5 +337,6 @@
 #ctxMenu button{display:block; width:100%; text-align:left; background:none; border:none;
   color:var(--text); font:inherit; font-size:13px; padding:8px 11px; border-radius:7px; cursor:pointer}
 #ctxMenu button:hover{background:rgba(91,140,255,.18)}
+#ctxMenu button:disabled{opacity:.35; cursor:not-allowed; background:none}
 
 footer a{color:#8fb4ff; text-decoration:none} footer a:hover{text-decoration:underline}

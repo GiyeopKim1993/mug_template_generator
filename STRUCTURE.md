@@ -49,3 +49,4 @@
   2. PDF 임베드: CMYK = raw→Flate(`CompressionStream('deflate')`, buildPdf async화 검토) 또는 PNG-없음 → **Flate+Predictor 15** 경로. 알파 = DeviceGray SMask 동일 경로.
   3. 검증: pypdfium2로 흰 배경 합성 시 기존 렌더와 동일해야 함(알파 영역=무잉크), interior·e2e·r5·savepanel 게이트 + 참고 PDF 3장 겹침 0 유지.
 - **위험**: buildPdf sync→async 시 unit 테스트 호출부 정정 필요; 페이지 크기 증가 추적.
+- **⚠ 요구 개정 (2026-10-05)**: 위 ② "순백 전부 알파"는 **오해석으로 폐기**. 정확한 요구 = **알파는 소스에 데이터 없는(투명) 영역만**; CMYK(0,0,0,0) 순백은 유효 데이터 → alpha 255 유지. 레이어 `W` 토글·`knockCanvas` 화이트 키링 전부 삭제, `pdfArtRaster` 알파 = `src alpha < 16`만 0.

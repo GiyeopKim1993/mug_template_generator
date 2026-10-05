@@ -117,9 +117,7 @@ async def main():
         await chk3d('hotkey-Del-empty', min_content=0.01)   # empty expected
         await upload('test.jpg')
 
-        # ---------- P3 knockout / visibility / bg ----------
-        await page.click('#layerList li[data-i="0"] .lbtn.ko'); await chk3d('W-off')
-        await page.click('#layerList li[data-i="0"] .lbtn.ko'); await chk3d('W-on')
+        # ---------- P3 visibility / bg (white keying removed 2026-10-05) ----------
         await page.click('#layerList li[data-i="0"] button[data-act="eye"]')
         await chk3d('eye-off', min_content=0.01)
         await page.click('#layerList li[data-i="0"] button[data-act="eye"]')
@@ -264,7 +262,10 @@ async def main():
         await upload('gen-pano.png');  await chk3d('img-panorama')
         await upload('gen-tall.png');  await chk3d('img-tall')
         await upload('gen-alpha.png'); await chk3d('img-alpha')
-        await upload('gen-white.png'); await chk3d('img-whitedominant', min_content=0.5)
+        await upload('gen-white.png')
+        wd = await chk3d('img-whitedominant', min_content=0.0)   # opaque white face (spec 2026-10-05)
+        if wd['white'] < 8:
+            flags.append(f"white-dominant face not rendered: white={wd['white']}")
 
         # ---------- P14 rotation auto-cover refit (wide image) ----------
         await upload('gen-white.png')
@@ -273,19 +274,19 @@ async def main():
         w0 = await page.evaluate("state.img.w")
         await page.eval_on_selector('#rotR', "el=>{el.value=90; el.dispatchEvent(new Event('input'));}")
         await page.wait_for_timeout(450)
-        r90 = await chk3d('rot90-wide-refit')
+        r90 = await chk3d('rot90-wide-refit', min_content=0.0)   # white face opaque by spec; geometry checks carry
         w90 = await page.evaluate("state.img.w")
         if w90 <= w0 + 30:
             flags.append(f'rot90 did NOT grow wide image: {w0} -> {w90}')
-        if r90['streak'] > 6:
-            flags.append(f'rot90 refit still streaky: {r90["streak"]}')
+        if r90['white'] < 8:
+            flags.append(f'rot90 wide face missing after refit: white={r90["white"]}')
         await page.eval_on_selector('#rotR', "el=>el.dispatchEvent(new Event('change'))")
         await page.eval_on_selector('#rotR', "el=>{el.value=0; el.dispatchEvent(new Event('input')); el.dispatchEvent(new Event('change'));}")
         await page.wait_for_timeout(450)
         w_back = await page.evaluate("state.img.w")
         if abs(w_back - w0) > 2:
             flags.append(f'rotate back did NOT restore user size: {w0} -> {w_back}')
-        await chk3d('rot-back-restore')
+        await chk3d('rot-back-restore', min_content=0.0)   # white face opaque by spec; size-restore assert carries
         # small decorative image must NOT be auto-resized
         await page.eval_on_selector('#scaleR', "el=>{el.value=40; el.dispatchEvent(new Event('input'));}")
         await page.wait_for_timeout(300)
@@ -295,7 +296,7 @@ async def main():
         w_after = await page.evaluate("state.img.w")
         if abs(w_after - w_small) > 2:
             flags.append(f'small image was force-resized on rotate: {w_small} -> {w_after}')
-        await chk3d('rot90-small-untouched', min_content=0.5)
+        await chk3d('rot90-small-untouched', min_content=0.0)   # white face opaque by spec; size-untouched assert carries
         await page.eval_on_selector('#rotR', "el=>{el.value=0; el.dispatchEvent(new Event('input'));}")
 
         # ---------- P12 flick momentum ----------

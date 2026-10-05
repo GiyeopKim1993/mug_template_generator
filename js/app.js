@@ -76,25 +76,10 @@ function dataUrlBytes(u){
   return a;
 }
 
-/* ---------- white knockout (W can't print) ---------- */
-function knockCanvas(bmp){
-  const c=document.createElement('canvas'); c.width=bmp.width; c.height=bmp.height;
-  const x=c.getContext('2d'); x.drawImage(bmp,0,0);
-  try{
-    const im=x.getImageData(0,0,c.width,c.height), d=im.data;
-    for(let i=0;i<d.length;i+=4){
-      const m=Math.min(d[i],d[i+1],d[i+2]);
-      if(m>245){ d[i+3]=Math.round(d[i+3]*((255-m)/10)); }   // pure white -> alpha 0
-    }
-    x.putImageData(im,0,0);
-  }catch(err){ console.warn('knockout skipped', err); }
-  return c;
-}
-function layerSrc(im){                    // default ON: white regions become transparent
-  if(im.ko===false) return im.bmp;
-  if(!im._ko || im._koKey!==im.bmp){ im._ko=knockCanvas(im.bmp); im._koKey=im.bmp; }
-  return im._ko;
-}
+/* alpha = source transparency ONLY (개정 2026-10-05).
+   White keying removed: pixels carrying CMYK(0,0,0,0) are valid data and stay opaque;
+   only source pixels with no data (transparent) render as alpha. */
+function layerSrc(im){ return (im && im.bmp) ? im.bmp : im; }
 
 /* ---------- toast ---------- */
 let toastT=0;
@@ -890,14 +875,15 @@ function drawEditor(){
 }
 
 function e2mm(px,py){ return [(px-edBox.ox)/edBox.s, (py-edBox.oy)/edBox.s]; }
-function layerHit(im,mx,my){
+function layerHit(im,mx,my,pad){
   if(!im || !im.bmp) return false;
+  pad = pad||0;
   const aspect=im.bmp.height/im.bmp.width;
   const a=(im.rot)*Math.PI/180, ca=Math.cos(-a), sa=Math.sin(-a);
   const dx=mx-im.cx, dy=my-im.cy;
   const lx=dx*ca-dy*sa, ly=dx*sa+dy*ca;
   const hw=im.w/2, hh=(im.w*aspect)/2;
-  return Math.abs(lx)<=hw && Math.abs(ly)<=hh;
+  return Math.abs(lx)<=hw+pad && Math.abs(ly)<=hh+pad;
 }
 function imgHit(mx,my){ return layerHit(state.img, mx, my); }
 /* topmost visible layer under (mm) point — array end = front */
@@ -914,6 +900,7 @@ function focusLayer(i){
   if(i<0 || i===state.activeLayer) return;
   state.activeLayer=i; state.sel=[i];
   syncActive(); renderLayers(); syncControls();
+  scheduleDraws();   // canvas selection handles/outline must follow focus (was stale → "click does nothing")
 }
 function handleScreenPos(){
   const im=state.img; if(!im) return null;
@@ -947,13 +934,13 @@ ed.addEventListener('pointerdown', e=>{
       edLock=true;
       ed.setPointerCapture(e.pointerId); return;
     }
-    const pick = pickTopLayer(mx,my);            // click focuses FRONT-most image
-    if(pick>=0) focusLayer(pick);
-    if(state.img && imgHit(mx,my)){
-      dragImg={dx:mx-state.img.cx, dy:my-state.img.cy};
-      edLock=true;
-      ed.setPointerCapture(e.pointerId); return;
-    }
+  }
+  const pick = pickTopLayer(mx,my);            // click focuses FRONT-most image (works with no active layer too)
+  if(pick>=0) focusLayer(pick);
+  if(state.img && imgHit(mx,my)){
+    dragImg={dx:mx-state.img.cx, dy:my-state.img.cy};
+    edLock=true;
+    ed.setPointerCapture(e.pointerId); return;
   }
 });
 /* ---- right-click: z-order context menu ---- */
@@ -963,9 +950,21 @@ ed.addEventListener('contextmenu', e=>{
   const m=document.getElementById('ctxMenu'); if(!m) return;
   const rect=ed.getBoundingClientRect();
   const [mx,my]=e2mm((e.clientX-rect.left)*dpr,(e.clientY-rect.top)*dpr);
-  const pick=pickTopLayer(mx,my);
+  let pick=pickTopLayer(mx,my);
+  if(pick<0){                                     // near-miss tolerance (3mm) so the menu reliably appears
+    const dsg=activeDesign();
+    for(let i=(dsg?dsg.layers.length:0)-1; i>=0; i--){
+      const L=dsg.layers[i];
+      if(L && L.visible && L.bmp && layerHit(L,mx,my,3)){ pick=i; break; }
+    }
+  }
   if(pick<0){ hideCtx(); return; }
   focusLayer(pick);
+  // reflect no-op actions instead of silently doing nothing (bottom-most layer)
+  const canMove = pick>0;
+  const bBack=m.querySelector('[data-act="back"]'), bTop=m.querySelector('[data-act="toback"]');
+  if(bBack) bBack.disabled=!canMove;
+  if(bTop) bTop.disabled=!canMove;
   m.hidden=false;
   const mw=m.offsetWidth||170, mh=m.offsetHeight||80;
   m.style.left=Math.min(e.clientX, innerWidth-mw-8)+'px';
@@ -1105,7 +1104,7 @@ $('#cropApply').addEventListener('click', async ()=>{
     im.cy += rcx*sa + rcy*ca;
     im.w = im.w*pw/ow;
     im._userW = im.w;
-    im.bmp=nb; im._ko=null; im._koKey=null;
+    im.bmp=nb;
     cropOff(); syncControls(); scheduleDraws();
     toast('크롭 적용됨 ('+Math.round(pw)+'×'+Math.round(ph)+'px)','ok');
   }catch(err){ console.error(err); toast('크롭 실패: '+err.message,'err'); }
@@ -1336,7 +1335,6 @@ function renderLayers(){
     const l=dsg.layers[vi];
     html += `<li data-i="${vi}" class="${vi===state.activeLayer?'on':''}${state.sel.includes(vi)?' sel':''}${l.visible?'':' hidden-layer'}">
       <button class="lbtn eye" data-act="eye" title="보이기/숨기기">${l.visible?'👁':'🚫'}</button>
-      <button class="lbtn ko ${l.ko!==false?'on':''}" data-act="ko" title="흰색(W)을 투명으로 — W는 잉크로 못 찍음">W</button>
       <span class="lyr-name">${l.name}</span>
       <button class="lbtn" data-act="up" title="위로 (위에 표시)" ${vi===dsg.layers.length-1?'disabled':''}>▲</button>
       <button class="lbtn" data-act="down" title="아래로 (아래에 표시)" ${vi===0?'disabled':''}>▼</button>
@@ -1352,7 +1350,6 @@ $('#layerList').addEventListener('click', e=>{
   if(btn){
     const act=btn.dataset.act;
     if(act==='eye'){ dsg.layers[i].visible=!dsg.layers[i].visible; renderLayers(); scheduleDraws(); return; }
-    if(act==='ko'){ const l=dsg.layers[i]; l.ko = !(l.ko!==false); renderLayers(); scheduleDraws(); return; }
     if(act==='del'){ delLayer(i); return; }
     const j = act==='up' ? i+1 : act==='down' ? i-1 : -1;
     if(j>=0 && j<dsg.layers.length && j!==i){
@@ -1828,7 +1825,8 @@ async function composePageArt(L, di){
   pc.drawImage(flat, 0, 0, P.height, P.width);
   return P;
 }
-/* ---- print raster: RGB -> CMYK + alpha; white/empty = unprinted (no ink) ---- */
+/* ---- print raster: RGB -> CMYK + alpha; alpha = source transparency only
+   (개정 2026-10-05: CMYK(0,0,0,0) white is valid data — NOT alpha) ---- */
 async function deflateZ(u8){
   const st = new Blob([u8]).stream().pipeThrough(new CompressionStream('deflate'));
   return new Uint8Array(await new Response(st).arrayBuffer());
@@ -1839,7 +1837,7 @@ async function pdfArtRaster(cv){
   const cmyk=new Uint8Array(w*h*4), alpha=new Uint8Array(w*h);
   for(let i=0,j=0;i<alpha.length;i++,j+=4){
     const r=px[j], g=px[j+1], b=px[j+2];
-    alpha[i] = (px[j+3]<16 || (r>=250 && g>=250 && b>=250)) ? 0 : 255;   // empty or pure white -> no ink
+    alpha[i] = px[j+3]<16 ? 0 : 255;   // no source data -> alpha; opaque white (CMYK 0,0,0,0) stays 255
     let C=1-r/255, M=1-g/255, Y=1-b/255;
     const K = C<M ? (C<Y?C:Y) : (M<Y?M:Y);
     if(K<1){ C=(C-K)/(1-K); M=(M-K)/(1-K); Y=(Y-K)/(1-K); }
@@ -2113,7 +2111,7 @@ function snapshotNow(name){
     bg:state.bg, copies:state.copies, copyDesign:[...state.copyDesign],
     activeDesign:state.activeDesign, activeLayer:state.activeLayer, sel:[...state.sel],
     designs: state.designs.map(d=>({id:d.id, name:d.name, ver:0,
-      layers:d.layers.map(l=>({...l, _ko:undefined, _koKey:undefined}))})),
+      layers:d.layers.map(l=>({...l}))})),
     thumb: thumbUrl() };
 }
 function applyDraft(d, silent){

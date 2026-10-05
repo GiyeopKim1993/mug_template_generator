@@ -82,8 +82,8 @@
 
     /* ---- layers ---- */
     '레이어':                 { ja: 'レイヤー', en: 'Layers' },
-    '위=화면 위 · 클릭=선택 · Shift+클릭=복수(그룹 정렬) · W=화이트 투명':
-      { ja: '上=画面上 · クリック=選択 · Shift+クリック=複数（グループ整列） · W=ホワイト透過', en: 'Top=front · Click=select · Shift+click=multi (group align) · W=white to transparent' },
+    '위=화면 위 · 클릭=선택 · Shift+클릭=복수(그룹 정렬)':
+      { ja: '上=画面上 · クリック=選択 · Shift+クリック=複数（グループ整列）', en: 'Top=front · Click=select · Shift+click=multi (group align)' },
     '이미지를 업로드하면 여기에 레이어가 생깁니다':
       { ja: '画像をアップロードするとここにレイヤーが表示されます', en: 'Upload images to see layers here' },
 

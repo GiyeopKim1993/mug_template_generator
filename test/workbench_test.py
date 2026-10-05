@@ -102,29 +102,29 @@ async def main():
         }""")
         chk('single align-left hits template edge', abs(one) < 0.6, f'L={one:.2f}')
 
-        # ---------- 4. white (W) knockout: default ON, unit check, toggle ----------
+        # ---------- 4. white keying REMOVED (개정 2026-10-05): alpha = source transparency only ----------
         ko = await page.evaluate("""() => {
           const c = document.createElement('canvas'); c.width = 2; c.height = 1;
           const x = c.getContext('2d');
           x.fillStyle = '#ffffff'; x.fillRect(0,0,1,1);
           x.fillStyle = '#e05050'; x.fillRect(1,0,1,1);
-          const k = knockCanvas(c).getContext('2d').getImageData(0,0,2,1).data;
-          return {white: k[3], red: k[3+4],
-                  defOn: state.designs[state.activeDesign].layers[0].ko !== false};
+          const s = layerSrc({bmp:c});
+          const k = s.getContext('2d').getImageData(0,0,2,1).data;
+          return {ident: s === c, white: k[3], red: k[3+4],
+                  wBtn: !!document.querySelector('.lbtn.ko')};
         }""")
-        chk('knockout: white -> alpha 0, color kept', ko['white'] == 0 and ko['red'] == 255, f'{ko}')
-        chk('knockout default ON for layers', ko['defOn'])
-        on0 = await page.evaluate("""() => {
-          const row = [...document.querySelectorAll('#layerList li')].find(li => li.dataset.i === '0');
-          return row && row.querySelector('.lbtn.ko').classList.contains('on');
+        chk('layerSrc passthrough — white NOT keyed', ko['ident'] and ko['white'] == 255 and ko['red'] == 255, f'{ko}')
+        chk('W knockout button removed', ko['wBtn'] is False, f'{ko}')
+        pdfa = await page.evaluate("""async () => {
+          const c = document.createElement('canvas'); c.width = 2; c.height = 1;
+          const x = c.getContext('2d');
+          x.fillStyle = '#ffffff'; x.fillRect(0,0,1,1);   // opaque white: CMYK(0,0,0,0) but HAS data
+          const {alphaZ} = await pdfArtRaster(c);         // pixel 1 stays transparent (no data)
+          const inf = new Uint8Array(await new Response(new Blob([alphaZ]).stream().pipeThrough(new DecompressionStream('deflate'))).arrayBuffer());
+          return Array.from(inf);
         }""")
-        chk('W button shows ON by default', on0)
+        chk('pdfArtRaster alpha: white=255, no-data=0', pdfa == [255, 0], f'{pdfa}')
         await close_print(page)
-        await page.click('#layerList li[data-i="0"] .lbtn.ko')
-        on1 = await page.evaluate("state.designs[state.activeDesign].layers[0].ko === false")
-        await page.click('#layerList li[data-i="0"] .lbtn.ko')
-        on2 = await page.evaluate("state.designs[state.activeDesign].layers[0].ko !== false")
-        chk('W toggle turns off and back on', on1 and on2, f'on1={on1} on2={on2}')
 
         # ---------- 5. crop ----------
         before = await page.evaluate("({w: state.img.bmp.width, sw: state.img.w})")

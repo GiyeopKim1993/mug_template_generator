@@ -67,11 +67,11 @@ def main():
                 set_yaw(yaw); shot(name)
 
         if step in ('all','E'):
-            print('[E] W toggle / layer hidden / W-knockout only')
-            page.evaluate("state.img.rot=0; state.img.w=205; state.img.ko=false; syncControls&&syncControls(); scheduleDraws();")
+            print('[E] layer visible / hidden (white keying removed — shot name kept for history)')
+            page.evaluate("state.img.rot=0; state.img.w=205; syncControls&&syncControls(); scheduleDraws();")
             page.wait_for_timeout(400)
             set_yaw(90); shot('E-noknock')
-            page.evaluate("state.img.ko=true; state.img.visible=false; scheduleDraws();")
+            page.evaluate("state.img.visible=false; scheduleDraws();")
             page.wait_for_timeout(400)
             shot('E-hidden')
             page.evaluate("state.img.visible=true; scheduleDraws();")
