@@ -218,13 +218,8 @@ async function buildPdfBlob(){
       // notched cut outline follows the real template shape — one path per copy
       for(const r of L.copies){
         const T = cutTransform(r);
-        const pts = wrapSegs(state.wrap.w, state.wrap.h, state.notch).map(sg=>{
-          const P=(i)=>{ const q=T(sg[i],sg[i+1]); return [mm2pt(q[0]), ptY(q[1])]; };
-          if(sg[0]==='M'){ const q=P(1); return ['M',q[0],q[1]]; }
-          if(sg[0]==='L'){ const q=P(1); return ['L',q[0],q[1]]; }
-          const c1=P(1), c2=P(3), e=P(5);
-          return ['C',c1[0],c1[1],c2[0],c2[1],e[0],e[1]];
-        });
+        const pts = wrapSegsToPts(state.wrap.w, state.wrap.h, state.notch, T,
+                                  (x,y)=>[mm2pt(x), ptY(y)]);
         ops.push({op:'path', pts, closed:true, stroke:{r:col.r, g:col.g, b:col.b, w:st.w}});
       }
       const t1='11oz MUG FULL WRAP   '+state.wrap.w+' x '+state.wrap.h+' mm'+(L.nCopies>1?'   -   '+L.nCopies+' UP':'')+'   -   CUT ALONG THE LINE';

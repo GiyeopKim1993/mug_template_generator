@@ -11,8 +11,7 @@ function wrapSegsToCtx(ctx, segs, T, s){
   }
 }
 function cutTransform(a){
-  return (a.or==='v') ? ((x,y)=>[a.x + y, a.y + a.h - x])   // rotated 90° (never stretched)
-                      : ((x,y)=>[a.x + x, a.y + y]);
+  return segTransform(a.x, a.y, a.h, a.or);   // rotated 90° (never stretched) — shared core
 }
 function drawPagePrev(){
   if(state.exportScope==='list' && drafts.length){

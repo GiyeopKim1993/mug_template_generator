@@ -187,16 +187,8 @@ async function computeImposedPages(machine, paperKey, opt){
       const st=CUT_STYLES.light;
       const col={r:st.col[0], g:st.col[1], b:st.col[2]};
       for(const c of cells){
-        const T = (c.or==='v')
-          ? (x,y)=>[c.x + y, c.y + c.hMm - x]
-          : (x,y)=>[c.x + x, c.y + y];
-        const pts = wrapSegs(c.wrap.w, c.wrap.h, c.notch).map(sg=>{
-          const P=(i)=>{ const q=T(sg[i],sg[i+1]); return [mm2pt(q[0]), pt2(q[1])]; };
-          if(sg[0]==='M'){ const q=P(1); return ['M',q[0],q[1]]; }
-          if(sg[0]==='L'){ const q=P(1); return ['L',q[0],q[1]]; }
-          const c1=P(1), c2=P(3), e=P(5);
-          return ['C',c1[0],c1[1],c2[0],c2[1],e[0],e[1]];
-        });
+        const T = segTransform(c.x, c.y, c.hMm, c.or);
+        const pts = wrapSegsToPts(c.wrap.w, c.wrap.h, c.notch, T, (x,y)=>[mm2pt(x), pt2(y)]);
         ops.push({op:'path', pts, closed:true, stroke:{r:col.r, g:col.g, b:col.b, w:st.w}});
       }
     }

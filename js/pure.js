@@ -422,6 +422,24 @@ function notchGeom(w, h){
 }
 /* Outline path segments in wrap mm coords (top-left origin, clockwise).
    Format: [['M',x,y],['L',x,y],['C',x1,y1,x2,y2,x,y],...] for canvas+PDF. */
+/* ---- shared copy transform (R-2 dedupe: DXF/SVG/PDF/cut-preview all used this
+   identical inline closure; true 90° rotation, never stretched) ---- */
+function segTransform(x, y, h, or){
+  return (or==='v')
+    ? (px,py)=>[x + py, y + h - px]
+    : (px,py)=>[x + px, y + py];
+}
+/* wrap outline -> PDF path points: T maps mm->mm, P maps mm->page-pt.
+   (R-2 dedupe: identical block lived in export.js and support.js) */
+function wrapSegsToPts(w, h, notch, T, P){
+  return wrapSegs(w, h, notch).map(sg=>{
+    const q=(i)=>{ const t=T(sg[i],sg[i+1]); return P(t[0],t[1]); };
+    if(sg[0]==='M'){ const p=q(1); return ['M',p[0],p[1]]; }
+    if(sg[0]==='L'){ const p=q(1); return ['L',p[0],p[1]]; }
+    const c1=q(1), c2=q(3), e=q(5);
+    return ['C',c1[0],c1[1],c2[0],c2[1],e[0],e[1]];
+  });
+}
 function wrapSegs(w, h, notch){
   const segs = [['M',0,0],['L',w,0]];
   if(notch === false){
@@ -491,9 +509,7 @@ function buildDxf(args){
     const wr = (args.wraps && args.wraps[i]) || wrap;
     const nt = (args.notches && args.notches[i] !== undefined) ? args.notches[i] : notch;
     const src = wrapDxfSegs(wr.w, wr.h, nt);
-    const T = (r.or==='v')
-      ? (x,y)=>[r.x + y, r.y + r.h - x]      // true 90° rotation, never stretched
-      : (x,y)=>[r.x + x, r.y + y];
+    const T = segTransform(r.x, r.y, r.h, r.or);   // true 90° rotation, never stretched
     for(const sg of src){
       if(sg.t==='L'){
         const a=T(sg.x0,sg.y0), b=T(sg.x1,sg.y1);
@@ -614,9 +630,7 @@ function buildSvg(args){
     const wr = (args.wraps && args.wraps[i]) || wrap;
     const nt = (args.notches && args.notches[i] !== undefined) ? args.notches[i] : notch;
     const src = wrapDxfSegs(wr.w, wr.h, nt);
-    const T = (r.or==='v')
-      ? (x,y)=>[r.x + y, r.y + r.h - x]      // same true-90° rotation as DXF/PDF
-      : (x,y)=>[r.x + x, r.y + y];
+    const T = segTransform(r.x, r.y, r.h, r.or);   // same true-90° rotation as DXF/PDF
     let d = '';
     for(const sg of src){
       if(sg.t==='L'){
