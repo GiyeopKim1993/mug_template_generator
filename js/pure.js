@@ -414,11 +414,14 @@ function computeLayout(args){
 }
 
 /* ---- real 11oz wrap shape: rectangle + 4 semicircular handle notches ----
-   Measured from real templates (Ainayar shrink-wrap 11oz, 15oz cutout sheets):
-   notch radius = 0.08 * H, centers at y = 0.20H and 0.80H on BOTH short edges
-   (x=0 and x=W), i.e. the two edges that meet at the handle. */
+   Measured from real templates: notch radius = 0.08 * H.
+   NOTCH CENTERS ANCHORED TO THE HANDLE FEET (GLB 실측 world y +0.5955/−0.6224
+   → 디자인 mm +30.5/−31.9, 밴드 중심 기준) — 노치가 핸들 발끝에 정확히 일치,
+   템플릿 높이가 달라도 컵 기준 좌표에서 자동 정비례. */
 function notchGeom(w, h){
-  return { r: 0.08*h, y1: 0.20*h, y2: 0.80*h };
+  const y1 = Math.max(0.08*h, h/2 - 30.52);   // upper foot  (sheet y from top)
+  const y2 = Math.min(0.92*h, h/2 + 31.90);   // lower foot
+  return { r: 0.08*h, y1, y2 };
 }
 /* Outline path segments in wrap mm coords (top-left origin, clockwise).
    Format: [['M',x,y],['L',x,y],['C',x1,y1,x2,y2,x,y],...] for canvas+PDF. */

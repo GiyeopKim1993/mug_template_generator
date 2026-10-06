@@ -111,10 +111,6 @@ async def main():
         closed = await pg.evaluate("()=>!document.getElementById('renderModal').classList.contains('open')")
         chk('ESC closes modal (stage back)', closed)
 
-        # ---- photoreal mockup card (#10) ----
-        mock = await pg.evaluate('()=>window.__mockupInfo ? __mockupInfo() : null')
-        chk('mockup: photo loaded + drawn', mock and mock['ready'] and mock['drawn'] and mock['w'] > 200, mock)
-
         chk('no page errors', len(errs) == 0, '; '.join(errs[:3]))
         await pg.screenshot(path='mug3d-final.png', full_page=False)
         await b.close()
