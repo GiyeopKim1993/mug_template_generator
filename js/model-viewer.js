@@ -16,9 +16,11 @@
      ⑤ draw-on-demand + adaptive pixel ratio (EMA budget), DPR cap 1.5
 
    Print mapping (#1 fix — geometry measured at runtime):
-     wrap band x(mm) → u = 1 + (wrap.w/2 − x)/CIRC_MM  (mod 1)
-       · band spans 205/257.6 ≈ 0.796 of the circumference (handle gap
-         stays plain white — no stretch, no rotation)
+     wrap band x(mm) → u = 1 + (wrap.w/2 − x)/texCirc  (mod 1)
+       · band spans w/texCirc of the circumference; texCirc = R·257.6 mm
+         where R = cup slim scale (see dispCirc) — the cup model is scaled
+         to the design width, so the image keeps its native ratio and the
+         design edge (notch) lands on the handle feet (no image stretch)
        · band centre (앞면 중심) lands at local angle 180° (opposite the
          handle); stage default yaw turns it toward the camera
        · canvas y → wall v via measured v(y) fit → artwork stays upright
@@ -45,6 +47,25 @@ const STAGE_BG = 0x12151d;
 /* physical scale: body radius 0.8 units == 41 mm (11oz Ø8.2cm) */
 const UNITS_PER_MM = 0.8 / 41;
 const CIRC_MM = (2 * Math.PI * 0.8) / UNITS_PER_MM;   // ≈257.6 mm
+
+/* 컵 3D 스케일 (요청: 이미지가 아닌 컵 모델을 스케일 — 이미지 비율 불변):
+   랩 폭 w가 핸들 발끝(±6.6°)에 닿도록 몸통 원주를 가늘게 줄인다.
+   w≥248·하한 0.6 밖에서는 원본 원주 유지(이미지 왜곡 0, 갭은 신실하게). */
+const HANDLE_HALF_DEG = 6.6;
+function dispCirc(w) {
+  const span = 1 - (2 * HANDLE_HALF_DEG) / 360;                 // 0.96333 = art→handle-feet
+  const R = Math.max(0.6, Math.min(1, w / (span * CIRC_MM)));   // slim ratio (0.6 … 1)
+  return { R, texCirc: R * CIRC_MM };
+}
+let slim = null, lastSlimR = -1;
+function applySlim() {
+  if (!slim) return false;
+  const R = dispCirc(state && state.wrap ? state.wrap.w : 205).R;
+  if (R === lastSlimR) return false;
+  slim.scale.set(R, 1, R);           // radius만 스케일(세로 유지 → 실물 비율)
+  lastSlimR = R;
+  return true;
+}
 
 let libsPromise = null, libsFailed = false;
 async function ensureLibs() {
@@ -245,6 +266,8 @@ function ensureInit() {
     loader.load(GLB_URL, (g) => {
       root.clear();
       root.add(g.scene);
+      slim = g.scene;
+      applySlim();                        // 컵 원주 = 디자인 폭 스케일 (fit 전 적용)
       g.scene.traverse((o) => {
         if (o.isMesh) o.userData.printable = classifyPrintable(o);
       });
@@ -400,11 +423,13 @@ function applyDesignTexture() {
     bx.drawImage(src, 0, 0);
 
     const w = state.wrap.w, h = state.wrap.h;
+    if (applySlim()) fitHome();          // 원주 스케일이 바뀌면 재중심·재맞춤
     const vTop = vAt((h / 2) * UNITS_PER_MM);
     const vBot = vAt((-h / 2) * UNITS_PER_MM);
     const dv = Math.max(1e-4, vTop - vBot);
-    const Wc = Math.round(CIRC_MM * (Wb / w));          // full circumference px
-    const Hc = Math.round(Hb / dv);                     // v∈[0,1] height px
+    const texCirc = dispCirc(w).texCirc; // 컵 원주(mm) — 이미지 왜곡 없음
+    const Wc = Math.round(texCirc * (Wb / w));  // full circumference px
+    const Hc = Math.round(Hb / dv);             // v∈[0,1] height px
 
     if (!tex) buildMaterials();
     const cv = tex.image;
@@ -415,19 +440,16 @@ function applyDesignTexture() {
 
     // image CENTRE at u=0.5 (local 180°, opposite handle at the u=0/1 seam);
     // slope +1: screen-u grows L→R and image-left must land on screen-left (probe-verified)
-    // 프리뷰 밀착(요청: 노치가 핸들 바로 옆에 붙을 것 / 비례 스케일): 3D에서만 시트
-    // 아크를 ≤CIRC−17.6mm(=핸들 옆 8.8mm/쪽 갭) 상당으로 비율 확대 — 평면 시트·인쇄·
-    // 내보내기(state.wrap.w)는 그대로 205 등 원본 폭 유지.
-    const ARC = Math.max(w, CIRC_MM - 17.6); // 좁은 랩은 240mm 상당까지 신장(핸들 밀착), 240↑은 원폭 유지
-    const U0 = 0.5 - (ARC / 2) / CIRC_MM;    // image left edge u (centre fixed at 0.5)
-    const sx = ARC / w;                      // 가로 아크 비율 스케일 (세로 v매핑 불변)
+    // 밀착(요청): 컵 원주를 디자인 폭에 맞춰 스케일 → 이미지 비율 100% 유지,
+    // 디자인 끝선=노치가 핸들 발끝(±6.6°)에 붙음. 평면·인쇄·내보내기 state.wrap.w 불변.
+    const U0 = 0.5 - (w / 2) / texCirc;  // image left edge u (centre fixed at 0.5)
     const e1 = U0 * Wc, e2 = e1 - Wc;
     const d = -(Hc * dv) / Hb;                          // y' = v·Hc, v drops with py
     const f = Hc * vTop;
     cx.imageSmoothingEnabled = true;
     cx.imageSmoothingQuality = 'high';
     for (const e of [e1, e2]) {
-      cx.setTransform(sx, 0, 0, d, e, f);
+      cx.setTransform(1, 0, 0, d, e, f);   // 이미지 왜곡 없음 (sx=1), 컵이 대신 스케일
       cx.drawImage(bandCanvas, 0, 0);
     }
     cx.setTransform(1, 0, 0, 1, 0, 0);

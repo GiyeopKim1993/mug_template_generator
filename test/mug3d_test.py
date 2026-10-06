@@ -55,7 +55,8 @@ async def main():
         await pg.wait_for_timeout(700)
         info2 = await pg.evaluate('()=>window.__mv.info()')
         # wrap-band canvas = full circumference px: Wc = CIRC_MM(257.6) * Wb(1400) / w(205)
-        chk('texture: design applied (texW=1759, mapped>=1)', info2['hasTex'] and info2['texW'] == 1759 and info2['mapped'] >= 1, info2)
+        # texW = slim circumference (205/(1-13.2°/360) = 212.8mm) × Wb/w — 컵 스케일 기준
+        chk('texture: design applied (texW=1453, mapped>=1)', info2['hasTex'] and info2['texW'] == 1453 and info2['mapped'] >= 1, info2)
         chk('body still the only printable mesh after upload',
             [x for x in (await pg.evaluate('()=>window.__mv.probe()')) if x['printable'] and x['map']] != [],
             None)
