@@ -156,7 +156,7 @@ window.__mockupDraw = function () {
     const dsg = state.designs[state.activeDesign];
     const ver = dsg ? (dsg.ver || 0) : -1;
     if (ver === _mpLastVer && _mpDone) return;
-    const design = designCanvas(state.activeDesign, true);  // noNotch: 3D와 동일 — 노치 구멍 미노출
+    const design = designCanvas(state.activeDesign);  // 노치 포함 — 체크박스 상태와 동일
     if (!design || !design.width) return;
     _mpLastVer = ver; _mpDone = true;
     const q = MOCKUP_QUAD.map(p => [p[0] * W, p[1] * H]);

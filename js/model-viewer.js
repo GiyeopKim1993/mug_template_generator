@@ -386,7 +386,7 @@ function applyDesignTexture() {
     const wrapKey = state.wrap.w + 'x' + state.wrap.h;
     if (ver === lastVer && wrapKey === lastWrapKey) return;
 
-    const src = designCanvas(state.activeDesign, true);   // noNotch: 절취 구멍은 평면 시트용 — 3D엔 안 구움
+    const src = designCanvas(state.activeDesign);  // 노치 포함 — 핸들 노치 체크박스가 3D에도 반영
     if (!src || !wallFit) return;                 // retry once wallFit exists
 
     // band source: design artwork composited on white (preview-only)
@@ -415,14 +415,19 @@ function applyDesignTexture() {
 
     // image CENTRE at u=0.5 (local 180°, opposite handle at the u=0/1 seam);
     // slope +1: screen-u grows L→R and image-left must land on screen-left (probe-verified)
-    const U0 = 0.5 - (w / 2) / CIRC_MM;      // image left edge u (centre fixed at 0.5)
+    // 프리뷰 밀착(요청: 노치가 핸들 바로 옆에 붙을 것 / 비례 스케일): 3D에서만 시트
+    // 아크를 ≤CIRC−17.6mm(=핸들 옆 8.8mm/쪽 갭) 상당으로 비율 확대 — 평면 시트·인쇄·
+    // 내보내기(state.wrap.w)는 그대로 205 등 원본 폭 유지.
+    const ARC = Math.max(w, CIRC_MM - 17.6); // 좁은 랩은 240mm 상당까지 신장(핸들 밀착), 240↑은 원폭 유지
+    const U0 = 0.5 - (ARC / 2) / CIRC_MM;    // image left edge u (centre fixed at 0.5)
+    const sx = ARC / w;                      // 가로 아크 비율 스케일 (세로 v매핑 불변)
     const e1 = U0 * Wc, e2 = e1 - Wc;
     const d = -(Hc * dv) / Hb;                          // y' = v·Hc, v drops with py
     const f = Hc * vTop;
     cx.imageSmoothingEnabled = true;
     cx.imageSmoothingQuality = 'high';
     for (const e of [e1, e2]) {
-      cx.setTransform(1, 0, 0, d, e, f);
+      cx.setTransform(sx, 0, 0, d, e, f);
       cx.drawImage(bandCanvas, 0, 0);
     }
     cx.setTransform(1, 0, 0, 1, 0, 0);

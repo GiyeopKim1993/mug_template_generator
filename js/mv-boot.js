@@ -3,7 +3,7 @@
 if (location.protocol !== 'file:') {
   var _mv = document.createElement('script');
   _mv.type = 'module';
-  _mv.src = 'js/model-viewer.js?v=20261006b';
+  _mv.src = 'js/model-viewer.js?v=20261006c';
   document.body.appendChild(_mv);
 } else {
   document.addEventListener('DOMContentLoaded', function () {
