@@ -386,7 +386,7 @@ function applyDesignTexture() {
     const wrapKey = state.wrap.w + 'x' + state.wrap.h;
     if (ver === lastVer && wrapKey === lastWrapKey) return;
 
-    const src = designCanvas(state.activeDesign);
+    const src = designCanvas(state.activeDesign, true);   // noNotch: 절취 구멍은 평면 시트용 — 3D엔 안 구움
     if (!src || !wallFit) return;                 // retry once wallFit exists
 
     // band source: design artwork composited on white (preview-only)

@@ -10,19 +10,26 @@ function syncActive(){ state.img = activeLayer(); }
    uses the live `tex` canvas, rebuilt by rebuildTexture() */
 const _dcache = new Map();
 function clearDesignCache(){ _dcache.clear(); }
-function designCanvas(i){
+/* noNotch=true — 3D/실사목업 전용: 평면 템플릿 절취 노치(반원 구멍)를 구우면
+   손잡이에서 어긋난 흰 구멍이 전사 위에 떠 보인다(GLB 팔 위치 θ±6.6° vs
+   노치 가장자리 θ±36.7°, 높이 4.6~5.7mm 오차 → #노치재현). 디자인/내보내기/
+   페이지 미리보기는 평면 시트 모양 그대로 유지(기본 경로 불변). */
+function designCanvas(i, noNotch){
   if(!(i >= 0) || i >= state.designs.length) i = 0;
-  if(i === state.activeDesign) return tex;
+  if(!noNotch && i === state.activeDesign) return tex;
   const d = state.designs[i];
-  const hit = _dcache.get(i);
+  const key = noNotch ? i + '@nn' : i;
+  const want = noNotch ? 'nn' : state.notch;
+  const hit = _dcache.get(key);
   if(hit && hit.ver === d.ver && hit.wrapW === state.wrap.w && hit.wrapH === state.wrap.h
-     && hit.notch === state.notch && hit.bg === state.bg) return hit.c;
+     && hit.notch === want && hit.bg === state.bg) return hit.c;
   const c = document.createElement('canvas');
   const W = 1400, H = Math.round(W * state.wrap.h / state.wrap.w);
   c.width = W; c.height = H;
-  drawArtwork(c.getContext('2d'), W, H, W/state.wrap.w, false, i);
-  _dcache.set(i, {ver:d.ver, c, wrapW:state.wrap.w, wrapH:state.wrap.h,
-                  notch:state.notch, bg:state.bg});
+  const env = noNotch ? Object.assign({}, state, {notch:false}) : null;
+  drawArtwork(c.getContext('2d'), W, H, W/state.wrap.w, false, i, env);
+  _dcache.set(key, {ver:d.ver, c, wrapW:state.wrap.w, wrapH:state.wrap.h,
+                  notch:want, bg:state.bg});
   return c;
 }
 
