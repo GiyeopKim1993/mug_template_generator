@@ -433,6 +433,10 @@ function applyDesignTexture() {
 
     if (!tex) buildMaterials();
     const cv = tex.image;
+    // WebGL2 texStorage2D = 불변 할당: 캔버스가 커지는 경우(예: 205→197×89, Hc 1047→1086)에
+    // 재할당 없이 업로드하면 glTexSubImage2D overflow로 무시되어 3D가 갱신되지 않는다.
+    // 크기 변경 시 dispose → 다음 렌더에서 현재 크기로 GPU 재할당.
+    if (cv.width !== Wc || cv.height !== Hc) tex.dispose();
     cv.width = Wc; cv.height = Hc;
     const cx = cv.getContext('2d');
     cx.fillStyle = '#ffffff';
