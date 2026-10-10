@@ -1,4 +1,4 @@
-import asyncio, os, re, sys
+import asyncio, os, sys
 from playwright.async_api import async_playwright
 from ui_helpers import open_print, close_print
 
@@ -67,7 +67,8 @@ async def main():
           return {on: bs.find(b=>b.classList.contains('on')).dataset.v,
                   dis: bs.filter(b=>b.disabled).map(b=>b.dataset.v),
                   orient: state.orient,
-                  dxfVis: document.querySelector('#dxfBtn').style.display !== 'none',
+                  dxfVis: document.querySelector('#pdfFcmBtn').style.display !== 'none',
+                  expVis: document.querySelector('#exportBtn').style.display !== 'none',
                   expLab: document.querySelector('#exportBtn').textContent.trim(),
                   n: currentLayout().nCopies, or: currentLayout().art.or,
                   opt3: document.querySelector('#copiesSel option[value=\\"3\\"]').disabled};
@@ -75,41 +76,51 @@ async def main():
         print('mark mode segs:', seg)
         assert seg['on'] == 'v' and set(seg['dis']) == {'auto', 'h'}, f'only 세로 selectable: {seg}'
         assert seg['orient'] == 'v' and seg['or'] == 'v' and seg['n'] <= 2, f'mark forced vertical: {seg}'
-        assert seg['dxfVis'] is True and seg['opt3'] is True, f'dxf visible, 3-up blocked: {seg}'
+        assert seg['dxfVis'] is True and seg['expVis'] is True and seg['opt3'] is True, f'pdf·fcm + pdf buttons visible, 3-up blocked: {seg}'
         await page.screenshot(path=f'{OUT}/cd-02-mark-vertical.png', full_page=True)
 
-        # ---------- DXF download (single): reset copies to 1 first ----------
+        # ---------- PDF · FCM download (single): reset copies to 1 first ----------
         await open_print(page)
         await page.select_option('#copiesSel', '1')
         await page.wait_for_timeout(250)
+        dls1 = []
+        page.on('download', lambda d: dls1.append(d))
         async with page.expect_download() as dinfo:
-            await page.click('#dxfBtn')
-        dl = await dinfo.value
-        dxf_path = os.path.join(OUT, 'cut1.dxf')
-        await dl.save_as(dxf_path)
-        txt = open(dxf_path, encoding='utf-8', errors='replace', newline='').read()
-        nl, na = len(re.findall(r'\r\nLINE\r\n', txt)), len(re.findall(r'\r\nARC\r\n', txt))
-        print('dxf:', dl.suggested_filename, 'LINE', nl, 'ARC', na)
-        assert dl.suggested_filename.endswith('.dxf') and 'AC1009' in txt and txt.strip().endswith('EOF')
-        assert (nl, na) == (8, 4), f'single copy: 8 LINE / 4 ARC, got {nl}/{na}'
+            await page.click('#pdfFcmBtn')
+        await dinfo.value
+        await page.wait_for_timeout(1500)      # fcm lands ~400ms after the pdf
+        names1 = [d.suggested_filename for d in dls1]
+        print('pdf·fcm single:', names1)
+        assert any(n.endswith('.pdf') and 'brother' in n for n in names1), f'mark pdf in bundle: {names1}'
+        assert any(n.endswith('.fcm') for n in names1), f'fcm in bundle: {names1}'
+        assert not any(n.endswith('.dxf') for n in names1), f'no dxf anymore: {names1}'
+        assert {n[:-4] for n in names1 if n.endswith('.fcm')} <= {n[:-4] for n in names1 if n.endswith('.pdf')}, f'pdf/fcm share base: {names1}'
+        fcm1 = [d for d in dls1 if d.suggested_filename.endswith('.fcm')][0]
+        fcm1_path = os.path.join(OUT, 'cut1.fcm')
+        await fcm1.save_as(fcm1_path)
+        head = open(fcm1_path, 'rb').read(4)
+        assert head[:3] == b'FCM' or head == b'#FCM', f'fcm magic: {head!r}'
 
-        # ---------- DXF download (2-up) ----------
+        # ---------- PDF · FCM download (2-up) ----------
         await open_print(page)
         await page.select_option('#copiesSel', '2')
+        await page.wait_for_timeout(250)
+        dls2 = []
+        page.on('download', lambda d: dls2.append(d))
         async with page.expect_download() as dinfo:
-            await page.click('#dxfBtn')
-        dl = await dinfo.value
-        dxf_path2 = os.path.join(OUT, 'cut2.dxf')
-        await dl.save_as(dxf_path2)
-        txt2 = open(dxf_path2, encoding='utf-8', errors='replace', newline='').read()
-        nl2, na2 = len(re.findall(r'\r\nLINE\r\n', txt2)), len(re.findall(r'\r\nARC\r\n', txt2))
-        print('dxf2:', dl.suggested_filename, 'LINE', nl2, 'ARC', na2)
-        assert '-x2' in dl.suggested_filename and (nl2, na2) == (16, 8), f'2-up: 16/8, got {nl2}/{na2}'
+            await page.click('#pdfFcmBtn')
+        await dinfo.value
+        await page.wait_for_timeout(1500)
+        names2 = [d.suggested_filename for d in dls2]
+        print('pdf·fcm 2-up:', names2)
+        assert any(n.endswith('.pdf') and '-x2' in n for n in names2), f'2-up pdf: {names2}'
+        assert any(n.endswith('.fcm') and '-x2' in n for n in names2), f'2-up fcm: {names2}'
+        assert not any(n.endswith('.dxf') for n in names2), f'no dxf anymore: {names2}'
 
-        # ---------- DXF hidden again in cut mode ----------
+        # ---------- PDF · FCM hidden again in cut mode ----------
         await open_print(page)
         await page.click('#modeSeg button[data-v="cut"]')
-        dxf_disp = await page.evaluate("()=>document.querySelector('#dxfBtn').style.display")
+        dxf_disp = await page.evaluate("()=>document.querySelector('#pdfFcmBtn').style.display")
         assert dxf_disp == 'none', f'dxf hidden in cut mode: {dxf_disp!r}'
         # orientation restored (auto/h selectable again)
         seg2 = await page.evaluate("()=>[...document.querySelectorAll('#orientSeg button')].map(b=>({v:b.dataset.v,d:b.disabled}))")

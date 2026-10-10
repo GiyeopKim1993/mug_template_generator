@@ -1,4 +1,4 @@
-/* js/export.js — S4: PDF/DXF/save pipeline (STRUCTURE §3).
+/* js/export.js — S4: PDF/FCM/save pipeline (STRUCTURE §3).
    Pure byte/delivery flow; UI buttons stay in app.js and call into here. */
 const _imp = {key:null, pages:null, result:null, p:0, timer:0, building:false, queued:false};   // imposed cache: result shared by preview AND export (S3b)
 
@@ -110,12 +110,12 @@ function saveFilesSequential(items){
 function openSavePanel(url, blob, name){
   if(_spUrl && _spUrl!==url) URL.revokeObjectURL(_spUrl);
   _spUrl=url;
-  const kind = name.endsWith('.dxf') ? 'dxf' : name.endsWith('.fcm') ? 'fcm' : 'pdf';   // ZIP removed from export flow (R12)
+  const kind = name.endsWith('.fcm') ? 'fcm' : name.endsWith('.svg') ? 'svg' : 'pdf';   // ZIP removed from export flow (R12)
   const body=document.getElementById('spBody');
   body.innerHTML='';
   const nm=document.createElement('div'); nm.className='sp-name'; nm.textContent=name;
   const sub=document.createElement('div'); sub.className='sp-sub';
-  sub.textContent=Math.max(1,Math.round(blob.size/1024))+' KB · '+(kind==='dxf'?'DXF 컷 벡터':kind==='fcm'?'FCM (브라더 네이티브 컷)':'PDF (100% 실제 크기)');
+  sub.textContent=Math.max(1,Math.round(blob.size/1024))+' KB · '+(kind==='fcm'?'FCM (브라더 네이티브 컷)':kind==='svg'?'SVG 컷 벡터':'PDF (100% 실제 크기)');
   body.appendChild(nm); body.appendChild(sub);
   const urlIn=document.createElement('input'); urlIn.className='sp-url'; urlIn.readOnly=true;
   urlIn.value=location.href;
@@ -127,8 +127,6 @@ function openSavePanel(url, blob, name){
   const hint=document.createElement('div'); hint.className='sp-hint';
   hint.innerHTML = kind==='pdf'
     ? '미리보기가 다운로드를 차단합니다. <b>① 「새 창으로 열기」</b> → 그 창에서 내보내기 <b>② 주소 복사 → 새 탭 붙여넣기</b> <b>③ 미리보기 툴바 💾 / 우클릭 저장</b> <b>④ 버튼을 폴더로 드래그</b>'
-    : kind==='dxf'
-    ? '<b>① 새 창으로 열기 ② 주소 복사→새 탭</b> ③ 우클릭 저장 ④ 드래그 · DXF는 「내용 복사」→메모장 붙여넣기→.dxf 저장도 됩니다'
     : '<b>① 새 창으로 열기 ② 주소 복사→새 탭</b> ③ 우클릭 저장 ④ 드래그 — 새 창/새 탭이면 내보내기가 바로 저장됩니다';
   body.appendChild(hint);
   const btns=document.createElement('div'); btns.className='sp-btns';
@@ -154,14 +152,6 @@ function openSavePanel(url, blob, name){
     document.body.appendChild(a); a.click(); a.remove();
     toast('다시 시도함 — 여전히 안 되면 위 미리보기에서 저장하세요');
   });
-  if(kind==='dxf'){
-    mk('📋 내용 복사', async ()=>{
-      try{ const t=await (await fetch(url)).text();
-        await navigator.clipboard.writeText(t);
-        toast('DXF 내용이 클립보드에 복사됨 — 메모장에 붙여넣기 후 .dxf로 저장','ok');
-      }catch(e){ toast('복사 실패 — 위 미리보기에서 우클릭 저장하세요','err'); }
-    });
-  }
   mk('🔗 주소 복사 (새 탭용)', async ()=>{
     try{ await navigator.clipboard.writeText(location.href);
       toast('주소 복사됨 — 새 탭에 붙여넣고 내보내기 → 바로 저장됩니다','ok');
@@ -273,7 +263,6 @@ async function buildImposedPdf(machine, paperKey, opt){
     const base={copies, pageW:pg.w, pageH:pg.h,
                 wrap:cells[0].wrap, notch:cells[0].notch, wraps, notches};
     const tag=(artMode==='cut' ? 'cut-'+orient : machine)+'-p'+(pi+1);
-    cutFiles.push({name:'11oz-cut-'+tag+'.dxf', data:enc.encode(buildDxf(base))});
     cutFiles.push({name:'11oz-cut-'+tag+'.svg', data:enc.encode(buildSvg(base))});
     // Brother native (.fcm) — open-fcm MIT (실루엣 제거 → 항상 출력)
     try{ cutFiles.push({name:'11oz-cut-'+tag+'.fcm', data:buildFcm({...base, pageW:pg.w, pageH:pg.h, name:tag})}); }
@@ -281,28 +270,27 @@ async function buildImposedPdf(machine, paperKey, opt){
   });
   return {pdf, name, cutFiles, pageCount:cellPages.length, pages:outPages};
 }
-/* ---- DXF: vector cut outlines for Brother Canvas ---- */
+/* ---- PDF · FCM (마크 모드 단건): 인쇄용 PDF + 브라더 컷 파일 동시 저장 ---- */
 
-function exportDxf(){
+async function exportPdfFcm(){
+  const btn=$('#pdfFcmBtn'); btn.disabled=true;
   try{
+    const {pdf, name} = await buildPdfBlob();   // 마크 모드 = 인식 마크 포함 인쇄용 PDF
+    const base = name.replace(/\.pdf$/, '');
+    const items=[{blob:new Blob([pdf], {type:'application/pdf'}), name}];
     const L=currentLayout();
-    if(!L.fits) throw new Error('layout');
     const args={copies:L.copies, pageW:L.page.w, pageH:L.page.h,
                 wrap:state.wrap, notch:state.notch};
-    const txt = buildDxf(args);
-    const tag = 'brother';
-    const base='11oz-mug-'+state.wrap.w+'x'+state.wrap.h+'mm-'+tag+'-cut'+
-      (state.paper==='letter'?'-letter':'-a4')+
-      (L.nCopies>1?'-x'+L.nCopies:'');
-    const items=[{blob:new Blob([txt], {type:'application/dxf'}), name:base+'.dxf'}];
-    // 브라더 네이티브 컷 파일(.fcm)도 함께 — open-fcm MIT
+    // 브라더 네이티브 컷 파일(.fcm)도 함께 — open-fcm MIT (빌드 실패 시 PDF만 저장)
     try{ items.push({blob:new Blob([buildFcm({...args, name:base})], {type:'application/octet-stream'}),
                      name:base+'.fcm'}); }
     catch(e){ console.warn('fcm build failed', e); }
     saveFilesSequential(items);
   }catch(err){
     console.error(err);
-    toast(err.message==='layout' ? '템플릿이 페이지 영역에 맞지 않습니다 — 배치/크기를 조정하세요' : 'DXF 생성 실패: '+err.message,'err');
+    toast(err.message || 'PDF · FCM 생성 실패','err');
+  }finally{
+    updateExportUI();
   }
 }
 

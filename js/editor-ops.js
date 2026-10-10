@@ -424,7 +424,7 @@ $('#mirrorChk').addEventListener('change', e=>{ state.mirror=e.target.checked; d
 function updateMarkHint(){
   const el=$('#markHint');
   if(state.mode!=='mark'){ el.textContent=''; return; }
-  el.innerHTML='배치는 <b>세로만</b> (병렬 최대 2개) · 컷 외곽은 <b>DXF 내보내기</b>로 받으세요.<br>브라더 <b>ScanNCut DX Print to Cut</b>용 네 모서리 인식 마크만 인쇄합니다 — 공식 Brother 매뉴얼 다이어그램에서 <b>추출한 타깃 마크 이미지</b>를 별도 레이어(OCG)로 배치했습니다. 용지 <b>A4</b> 아트보드 기준 (공식 매뉴얼 예시 = A4).';
+  el.innerHTML='배치는 <b>세로만</b> (병렬 최대 2개) · 컷 파일은 <b>PDF · FCM 내보내기</b>로 받으세요.<br>브라더 <b>ScanNCut DX Print to Cut</b>용 네 모서리 인식 마크만 인쇄합니다 — 공식 Brother 매뉴얼 다이어그램에서 <b>추출한 타깃 마크 이미지</b>를 별도 레이어(OCG)로 배치했습니다. 용지 <b>A4</b> 아트보드 기준 (공식 매뉴얼 예시 = A4).';
 }
 
 /* ---------- current layout ---------- */

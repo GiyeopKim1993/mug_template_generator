@@ -66,7 +66,7 @@ $('#draftSaveBtn').addEventListener('click', ()=>{
   toast('목록에 추가됨 ('+d.n+'개)','ok');
 });
 
-$('#dxfBtn').addEventListener('click', exportDxf);
+$('#pdfFcmBtn').addEventListener('click', exportPdfFcm);
 /* fit selected image height to the wrap (template) height — aspect kept */
 $('#hfitBtn').addEventListener('click', ()=>{
   const im=state.img;

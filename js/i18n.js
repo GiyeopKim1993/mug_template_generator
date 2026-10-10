@@ -89,8 +89,8 @@
     /* ---- output card ---- */
     '출력':                   { ja: '出力', en: 'Output' },
     '100% 실제 크기':         { ja: '100% 実寸', en: '100% actual size' },
-    '모드 · 용지 · 마크 · 배치 · 미리보기 · PDF/DXF — 전부 다이얼로그에서':
-      { ja: 'モード · 用紙 · マーク · 配置 · プレビュー · PDF/DXF — すべてダイアログで', en: 'Mode · paper · marks · layout · preview · PDF/DXF — all in the dialog' },
+    '모드 · 용지 · 마크 · 배치 · 미리보기 · PDF/FCM — 전부 다이얼로그에서':
+      { ja: 'モード · 用紙 · マーク · 配置 · プレビュー · PDF/FCM — すべてダイアログで', en: 'Mode · paper · marks · layout · preview · PDF/FCM — all in the dialog' },
     '임시 저장':              { ja: '一時保存', en: 'Stash' },
     '전체 내보내기':          { ja: 'すべて書き出し', en: 'Export all' },
     '닫기 ✕':                 { ja: '閉じる ✕', en: 'Close ✕' },
@@ -114,7 +114,7 @@
     '아주 옅게':              { ja: 'とても薄く', en: 'Very light' },
     '옅게 (기본)':            { ja: '薄く（既定）', en: 'Light (default)' },
     '기기':                   { ja: '機器', en: 'Device' },
-    '마크·DXF 안내':          { ja: 'マーク・DXF の案内', en: 'Marks & DXF guide' },
+    '마크·FCM 안내':          { ja: 'マーク・FCM の案内', en: 'Marks & FCM guide' },
     '배치':                   { ja: '配置', en: 'Layout' },
     '자동':                   { ja: '自動', en: 'Auto' },
     '세로':                   { ja: '縦', en: 'Portrait' },
@@ -126,7 +126,7 @@
     '좌우 반전(미러) 인쇄':   { ja: '左右反転（ミラー）印刷', en: 'Mirror print (flip horizontal)' },
     '배치별 디자인':          { ja: '配置ごとのデザイン', en: 'Design per slot' },
     'PDF 내보내기':           { ja: 'PDF 書き出し', en: 'Export PDF' },
-    'DXF · FCM 내보내기 (컷 외곽)': { ja: 'DXF・FCM 書き出し（カット外形）', en: 'Export DXF · FCM (cut outline)' },
+    'PDF · FCM 내보내기 (인쇄 + 컷)': { ja: 'PDF・FCM 書き出し（印刷＋カット）', en: 'Export PDF · FCM (print + cut)' },
 
     /* ---- footer ---- */
     '브라우저 안에서만 동작합니다 — 업로드한 이미지가 어디에도 전송되지 않습니다. ·':
@@ -149,7 +149,6 @@
     '더블클릭':               { ja: 'ダブルクリック', en: 'Double-click' },
       '저장 패널':              { ja: '保存パネル', en: 'save panel' },
     '100% (실제 크기)':       { ja: '100%（実寸）', en: '100% (actual size)' },
-    'DXF 내보내기':           { ja: 'DXF 書き出し', en: 'DXF export' },
     '절취선을 인쇄하지 않습니다': { ja: '裁断線は印刷しません', en: 'Cut lines are not printed' },
     '세로만':                 { ja: '縦のみ', en: 'Portrait only' },
     '최대 2개':               { ja: '最大2枚', en: 'max 2-up' },

@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """R5 — unified export list (per-design counts + minimal-paper packing),
-machine cut files (DXF+SVG in ZIP), donation buttons, ad triggers."""
+machine cut files (SVG+FCM individual, no DXF anymore), donation buttons, ad triggers."""
 import sys, os, json, zipfile, tempfile, shutil
 from playwright.sync_api import sync_playwright
 
@@ -62,16 +62,18 @@ def main():
             p.wait_for_timeout(300)
         names = [d.suggested_filename for d in got]
         check(not any(n.endswith('.zip') for n in names), 'no zip anywhere (%s)' % names)
-        dxfs = [d for d in got if d.suggested_filename.endswith('.dxf')]
+        fcms = [d for d in got if d.suggested_filename.endswith('.fcm')]
         svgs = [d for d in got if d.suggested_filename.endswith('.svg')]
-        check(len(dxfs)>=1 and len(svgs)>=1, 'individual dxf+svg downloaded (%d/%d)' % (len(dxfs), len(svgs)))
-        if dxfs and svgs:
+        dxfs = [d for d in got if d.suggested_filename.endswith('.dxf')]
+        check(len(fcms)>=1 and len(svgs)>=1, 'individual svg+fcm downloaded (%d/%d)' % (len(fcms), len(svgs)))
+        check(not dxfs, 'no dxf anymore — export removed (%s)' % [d.suggested_filename for d in dxfs])
+        if fcms and svgs:
             tmp = tempfile.mkdtemp()
-            dp = os.path.join(tmp, 'c.dxf'); dxfs[0].save_as(dp)
+            fp = os.path.join(tmp, 'c.fcm'); fcms[0].save_as(fp)
             sp = os.path.join(tmp, 'c.svg'); svgs[0].save_as(sp)
-            dxf_txt = open(dp, encoding='utf8', errors='ignore').read()
+            fcm_bin = open(fp, 'rb').read()
             svg_txt = open(sp, encoding='utf8', errors='ignore').read()
-            check('LINE' in dxf_txt and 'EOF' in dxf_txt, 'dxf parses as DXF entities')
+            check(fcm_bin[:3] == b'FCM' or fcm_bin[:4] == b'#FCM', 'fcm magic header (%r)' % fcm_bin[:4])
             check('<path' in svg_txt and 'viewBox' in svg_txt, 'svg has path+viewBox')
             # 6 cells (2 + 4) packed across pages — sum paths over ALL svg downloads
             npath = sum(d.save_as(os.path.join(tmp, str(i)+'.svg')) or open(os.path.join(tmp, str(i)+'.svg'), encoding='utf8', errors='ignore').read().count('<path')

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""FCM export test: Brother cut list export must emit .fcm alongside .dxf/.svg.
+"""FCM export test: list export must emit .fcm alongside .svg (no .dxf anymore);
+the mark-mode button must emit .pdf + .fcm as a same-base pair.
 The generated .fcm is cross-validated with the independent svg2fcm (MPL-2.0) parser.
 Run from repo root: python3 test/fcm_test.py"""
 import os, sys, glob, subprocess, tempfile
@@ -48,12 +49,12 @@ def main():
         p.wait_for_timeout(800)
         for d in dl:
             d.save_as(os.path.join(tmp, d.suggested_filename))
-        # ---- DXF · FCM 버튼 경로 (단건 + 마크 모드) → .dxf + .fcm 동시 저장 ----
+        # ---- PDF · FCM 버튼 경로 (단건 + 마크 모드) → .pdf + .fcm 동시 저장 ----
         nfirst = len(dl)
         p.evaluate("()=>{state.mode='mark'; updateExportUI&&updateExportUI();}")
         p.click('#scopeSeg button[data-v=single]'); p.wait_for_timeout(700)
-        p.click('#dxfBtn')
-        for _ in range(40):
+        p.click('#pdfFcmBtn')
+        for _ in range(60):
             p.wait_for_timeout(300)
             if len(dl) >= nfirst + 2: break
         p.wait_for_timeout(600)
@@ -66,12 +67,19 @@ def main():
     fcm = [x for x in names if x.endswith('.fcm')]
     dxf = [x for x in names if x.endswith('.dxf')]
     svg = [x for x in names if x.endswith('.svg')]
+    pdf = [x for x in names if x.endswith('.pdf')]
     if not fcm: flags.append('no .fcm file in cut export (got %s)' % names)
-    if not dxf: flags.append('no .dxf (got %s)' % names)
+    if dxf: flags.append('unexpected .dxf — DXF export removed (got %s)' % dxf)
     if not svg: flags.append('no .svg (got %s)' % names)
+    if not pdf: flags.append('no .pdf (got %s)' % names)
+    # button path: mark-mode print pdf + same-base fcm pair
+    btn_pdf = [x for x in pdf if 'imposed' not in x and 'brother' in x]
+    if not btn_pdf: flags.append('PDF·FCM button: expected mark-mode pdf (got %s)' % names)
+    fcm_bases = {x[:-4] for x in fcm}
+    if btn_pdf and not any(x[:-4] in fcm_bases for x in btn_pdf):
+        flags.append('pdf/fcm base mismatch (pdf %s vs fcm %s)' % (btn_pdf, fcm))
     # cross-validate with svg2fcm
-    if len(dxf) < 2: flags.append('DXF·FCM button: expected a 2nd .dxf (got %s)' % names)
-    if len(fcm) < 2: flags.append('DXF·FCM button: expected a 2nd .fcm (got %s)' % names)
+    if len(fcm) < 2: flags.append('PDF·FCM button: expected a 2nd .fcm (got %s)' % names)
     for f0 in fcm:
         fp = os.path.join(tmp, f0)
         code = r'''

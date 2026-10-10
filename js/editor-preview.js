@@ -117,8 +117,8 @@ function updateExportUI(){
     (L.art.or==='v' ? '세로' : '가로') + ' 배치 · ' + L.nCopies + '개'
     + (state.mirror ? ' · 미러' : '');
   $('#exportBtn').disabled = listScope ? (!drafts.length || _imp.building) : !ok;
-  $('#dxfBtn').style.display = (listScope || state.mode!=='mark') ? 'none' : '';
-  $('#dxfBtn').disabled=!ok;
+  $('#pdfFcmBtn').style.display = (listScope || state.mode!=='mark') ? 'none' : '';
+  $('#pdfFcmBtn').disabled=!ok;
   if(listScope){
     const total = drafts.reduce((s,d)=>s+Math.max(1,Math.min(99,d.n||1)),0);
     $('#fitInfo').textContent = 'A4 합본 · '+drafts.length+'개 작업 × '+total+'매 · 최소 용지로 재배치 · 미리보기에서 쪽 확인 ✓';
