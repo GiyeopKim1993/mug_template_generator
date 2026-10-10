@@ -370,7 +370,7 @@ function setSegActive(sel, v){
 }
 segBind('#modeSeg', v=>{
   state.mode=v;
-  state.paper = 'a4';   // A4 only — online Silhouette/ScanNCut mark templates are A4
+  state.paper = 'a4';   // A4 only — Brother mark templates are A4
   // mark modes print VERTICAL only (세로) — hide auto/horizontal choices
   if(v==='mark'){
     if(state.orient!=='v'){ state._orientBefore=state.orient; state.orient='v'; }
@@ -392,7 +392,6 @@ segBind('#cutSeg', v=>{
   $('#cutSpec').textContent = CUT_STYLES[v].spec;
   drawPagePrev();
 });
-segBind('#markSeg', v=>{ state.machine=v; updateMarkHint(); drawPagePrev(); updateExportUI(); });
 segBind('#orientSeg', v=>{ state.orient=v; drawPagePrev(); updateExportUI(); });
 $('#copiesSel').addEventListener('change', e=>{
   state.copies = parseInt(e.target.value,10)||1;
@@ -425,11 +424,7 @@ $('#mirrorChk').addEventListener('change', e=>{ state.mirror=e.target.checked; d
 function updateMarkHint(){
   const el=$('#markHint');
   if(state.mode!=='mark'){ el.textContent=''; return; }
-  if(state.machine==='silhouette'){
-    el.innerHTML='배치는 <b>세로만</b> (병렬 최대 2개) · 컷 외곽은 <b>DXF 내보내기</b>로 받으세요.<br>실루엣 <b>Type 1</b> 등록 마크만 인쇄합니다 — 공식 Silhouette Connect 매뉴얼의 도면에서 <b>추출한 마크 이미지</b>를 별도 레이어(OCG)로 배치했습니다 (임의 그리기 아님). 절취선은 인쇄되지 않습니다. 인셋 15.875mm · 길이 20mm, 용지 <b>A4</b> (인터넷의 A4 프린트컷 템플릿과 동일).';
-  } else {
-    el.innerHTML='배치는 <b>세로만</b> (병렬 최대 2개) · 컷 외곽은 <b>DXF 내보내기</b>로 받으세요.<br>브라더 <b>ScanNCut DX Print to Cut</b>용 네 모서리 인식 마크만 인쇄합니다 — 공식 Brother 매뉴얼 다이어그램에서 <b>추출한 타깃 마크 이미지</b>를 별도 레이어(OCG)로 배치했습니다. 용지 <b>A4</b> 아트보드 기준 (공식 매뉴얼 예시 = A4).';
-  }
+  el.innerHTML='배치는 <b>세로만</b> (병렬 최대 2개) · 컷 외곽은 <b>DXF 내보내기</b>로 받으세요.<br>브라더 <b>ScanNCut DX Print to Cut</b>용 네 모서리 인식 마크만 인쇄합니다 — 공식 Brother 매뉴얼 다이어그램에서 <b>추출한 타깃 마크 이미지</b>를 별도 레이어(OCG)로 배치했습니다. 용지 <b>A4</b> 아트보드 기준 (공식 매뉴얼 예시 = A4).';
 }
 
 /* ---------- current layout ---------- */

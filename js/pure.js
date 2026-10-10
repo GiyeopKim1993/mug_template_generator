@@ -236,7 +236,6 @@ const PAPER = {
   letter:{ w:215.9, h:279.4, name:'US Letter' }   // optional; default = A4 (online A4 mark templates)
 };
 const A4 = PAPER.a4;
-const SIL = { inset:15.875, len:20, th:0.99, sqRatio:0.3007 };  // Studio defaults: Length 0.787in, Thickness 0.039in; sqRatio from official figure
 const BRO = { inset:25.4, gw:11.0, gh:12.157 };   // glyph box (w/h = 152/168 from official figure)
 const PRN = { m:7 };                                     // printer safety margin (cut mode)
 
@@ -245,32 +244,21 @@ function mm2pt(mm){ return mm * 72 / 25.4; }
 function safeBox(mode, machine, paper){
   const pg = paper || PAPER.a4;
   if(mode==='cut') return {x:PRN.m, y:PRN.m, w:pg.w-2*PRN.m, h:pg.h-2*PRN.m};
-  if(mode==='mark' && machine==='silhouette')
-    return {x:SIL.inset, y:SIL.inset, w:pg.w-2*SIL.inset, h:pg.h-2*SIL.inset};
   return {x:BRO.inset, y:BRO.inset, w:pg.w-2*BRO.inset, h:pg.h-2*BRO.inset};
 }
 function clearance(mode, machine){
   if(mode==='cut') return 1;
-  if(machine==='silhouette') return 3;
   return BRO.gh/2 + 2;    // glyph half-height + 2mm
 }
 
 /* Generate marks for mark mode (mm, top-left origin).
    Each mark is an IMAGE prim — the glyph bitmap was extracted from the official
-   manuals (Silhouette Connect p.9 Type-1 figure / Brother ScanNCut Link diagram)
+   manual (Brother ScanNCut Link diagram)
    and is embedded as a sub-layer in the PDF. Nothing is hand-drawn. */
 function markPrims(machine, paper){
   const pg = paper || PAPER.a4;
   const out = [];
-  if(machine==='silhouette'){
-    const {inset:I, len:L} = SIL;
-    const sq = L * SIL.sqRatio;                       // square side (figure: 43/143 of L)
-    out.push({t:'img', key:'SIL_SQ',  x:I,       y:I,       w:sq, h:sq});
-    out.push({t:'img', key:'SIL_L_TR', x:pg.w-I-L, y:I,       w:L,  h:L});
-    out.push({t:'img', key:'SIL_L_BL', x:I,       y:pg.h-I-L, w:L,  h:L});
-    return out;
-  }
-  // brother: 4 extracted bullseye target glyphs, centers at safe-box corners
+  // 4 extracted bullseye target glyphs, centers at safe-box corners
   const {inset:I, gw, gh} = BRO;
   const corners = [
     [I, I], [pg.w-I, I], [I, pg.h-I], [pg.w-I, pg.h-I]
@@ -284,14 +272,6 @@ function markPrims(machine, paper){
 /* Forbidden zones around marks (mm, top-left origin). Artwork must not touch them. */
 function markZones(machine, paper){
   const pg = paper || PAPER.a4;
-  if(machine==='silhouette'){
-    const {inset:I, len:L} = SIL, c = 3, sq = L*SIL.sqRatio;
-    return [
-      {x:I-c, y:I-c, w:sq+2*c, h:sq+2*c},                                 // TL square
-      {x:pg.w-I-L-c, y:I-c, w:L+2*c, h:L+2*c},                            // TR bracket
-      {x:I-c, y:pg.h-I-L-c, w:L+2*c, h:L+2*c}                             // BL bracket
-    ];
-  }
   const {inset:I, gw, gh} = BRO, c = 2;
   return [
     {x:I-gw/2-c, y:I-gh/2-c, w:gw+2*c, h:gh+2*c},
@@ -337,13 +317,13 @@ function resolveCellSpot(box, gap, zones, cw, ch, startX, startY){
 function computeLayout(args){
   const wrap = args.wrap;                 // {w,h} mm
   const mode = args.mode;                 // 'cut' | 'mark'
-  const machine = args.machine || 'silhouette';
+  const machine = args.machine || 'brother';
   let orientPref = args.orient || 'auto'; // 'auto'|'v'|'h'
   const copiesPref = Math.max(1, Math.min(9, parseInt(args.copies,10)||1));
   const paper = (args.paper && args.paper.w) ? args.paper
               : (typeof args.paper === 'string' && PAPER[args.paper]) ? PAPER[args.paper]
               : PAPER.a4;
-  // Silhouette / ScanNCut print-to-cut layouts are VERTICAL only
+  // ScanNCut print-to-cut layouts are VERTICAL only
   if(mode !== 'cut') orientPref = 'v';
   const box = safeBox(mode, machine, paper);
   const cl = clearance(mode, machine);
@@ -404,7 +384,7 @@ function computeLayout(args){
   };
   if(!fits){
     res.errors.push('템플릿이 '+
-      (mode==='cut' ? '인쇄 가능 영역' : (machine==='silhouette' ? '실루엣 인식 마크 안전 영역' : '스캔앤컷 인식 마크 안전 영역'))+
+      (mode==='cut' ? '인쇄 가능 영역' : '인식 마크 안전 영역')+
       '에 맞지 않습니다 — 배치를 바꾸거나 템플릿 크기를 줄여주세요.');
   }
   if(mode!=='cut'){
@@ -495,7 +475,7 @@ function wrapDxfSegs(w, h, notch){
 }
 /* DXF (R12 / AC1009) text with the cut outlines of every placed copy.
    Units = mm, origin = page top-left, Y flipped to Y-up so the file overlays
-   the printed page 1:1 when imported into Silhouette Studio / Canvas Workspace. */
+   the printed page 1:1 when imported into Brother Canvas Workspace. */
 function buildDxf(args){
   const copies = args.copies, pgH = args.pageH;
   const wrap = args.wrap, notch = args.notch;
@@ -536,7 +516,7 @@ function buildDxf(args){
   return out.join('\r\n') + '\r\n';
 }
 /* SVG cut outlines (mm, top-left origin, y-down) — imports cleanly into
-   Brother CanvasWorkspace (SVG) and Silhouette Studio. Same inputs as buildDxf. */
+   Brother CanvasWorkspace (SVG). Same inputs as buildDxf. */
 /* ---- FCM (Brother ScanNCut native) — via open-fcm (MIT). Units: 0.01 mm.
    Input mirrors buildSvg: {copies, wrap, notch, wraps, notches, pageW, pageH, name} ---- */
 function buildFcm(args){

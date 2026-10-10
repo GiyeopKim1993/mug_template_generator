@@ -8,7 +8,7 @@ const state = {
   bg:'#ffffff',
   img:null,          // {bmp, cx, cy, w(mm), rot(deg)}
   mode:'cut',
-  machine:'silhouette',
+  machine:'brother',
   orient:'auto',
   cutStyle:'light',
   mirror:true,
@@ -72,7 +72,8 @@ function snapshotNow(name){
 function applyDraft(d, silent){
   if(!d) return;
   state.wrap={...d.wrap};
-  state.mode=d.mode; state.machine=d.machine; state.orient=d.orient;
+  state.mode=d.mode; state.machine='brother';   // 실루엣 제거 — 구 드래프트 실루엣 값 보정
+  state.orient=d.orient;
   state.cutStyle=d.cutStyle; state.mirror=d.mirror; state.paper='a4';   // A4 only (drafts may carry legacy letter)
   state.notch=d.notch; state.bg=d.bg; state.copies=d.copies;
   state.copyDesign=[...(d.copyDesign||[0])];
@@ -86,7 +87,7 @@ function applyDraft(d, silent){
   _dsgSeq = Math.max(_dsgSeq, ...state.designs.map(x=>parseInt((x.name.match(/\d+/)||['0'])[0])||0));
   cropOff();
   setSegActive('#modeSeg', state.mode); setSegActive('#cutSeg', state.cutStyle);
-  setSegActive('#markSeg', state.machine); setSegActive('#orientSeg', state.orient);
+  setSegActive('#orientSeg', state.orient);
   $('#cutOpts').style.display = state.mode==='cut' ? '' : 'none';
   $('#markOpts').style.display = state.mode==='mark' ? '' : 'none';
   $('#notchChk').checked = !!state.notch;

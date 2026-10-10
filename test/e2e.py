@@ -67,21 +67,20 @@ async def main():
         await d.save_as(cut_path)
         print('downloaded:', d.suggested_filename, os.path.getsize(cut_path), 'bytes')
 
-        # switch to mark mode (silhouette)
+        # switch to mark mode (brother marks — silhouette removed)
         await open_print(page)
         await page.click('#modeSeg button[data-v="mark"]')
         await page.wait_for_timeout(500)
-        await page.screenshot(path=f'{OUT}/04-silhouette-mode.png', full_page=True)
+        await page.screenshot(path=f'{OUT}/04-mark-mode.png', full_page=True)
         async with page.expect_download() as dl2:
             await page.click('#exportBtn')
         d2 = await dl2.value
-        sil_path = os.path.join(BASE, 'out-silhouette.pdf')
-        await d2.save_as(sil_path)
-        print('downloaded:', d2.suggested_filename, os.path.getsize(sil_path), 'bytes')
+        mark_path = os.path.join(BASE, 'out-mark.pdf')
+        await d2.save_as(mark_path)
+        print('downloaded:', d2.suggested_filename, os.path.getsize(mark_path), 'bytes')
 
-        # brother mode
+        # brother mode (default — silhouette removed)
         await open_print(page)
-        await page.click('#markSeg button[data-v="brother"]')
         await page.wait_for_timeout(500)
         await page.screenshot(path=f'{OUT}/05-brother-mode.png', full_page=True)
         async with page.expect_download() as dl3:

@@ -82,7 +82,7 @@ function drawPagePrev(){
       }
     }
     pctx.fillStyle='rgba(90,96,110,0.9)';
-    const nm = state.machine==='silhouette'?'SILHOUETTE REG. MARKS':'BROTHER REG. MARKS';
+    const nm = 'BROTHER REG. MARKS';
     pctx.fillText(state.wrap.w+' × '+state.wrap.h+' mm · '+nm
       + (L.nCopies>1 ? '  ×'+L.nCopies : ''), ((uL+uR)/2)*s, uB*s+9);
   }
@@ -101,7 +101,7 @@ function drawPagePrev(){
   pctx.restore();
   // caption
   $('#prevCap').textContent = pg.name+' · '+(L.art.or==='v'?'세로':'가로')+' 배치 · '+L.nCopies+'개 · '+
-    (state.mode==='cut'?'재단선 인쇄':(state.machine==='silhouette'?'실루엣':'스캔앤컷')+' 마크만 인쇄')+
+    (state.mode==='cut'?'재단선 인쇄':'스캔앤컷 마크만 인쇄')+
     (state.mirror?' · 미러':'');
 }
 function updateExportUI(){
@@ -110,8 +110,7 @@ function updateExportUI(){
   const ok=L.fits;
   const listScope = state.exportScope==='list' && drafts.length;
   $('#sumContent').textContent =
-    (state.mode==='cut' ? '재단선 포함'
-      : (state.machine==='silhouette' ? '실루엣' : '브라더')+' 마크만')
+    (state.mode==='cut' ? '재단선 포함' : '브라더 마크만')
     + ' · A4'
     + (state.mode==='cut' ? ' · '+CUT_STYLES[state.cutStyle].label : '');
   $('#sumLayout').textContent =
@@ -176,7 +175,7 @@ function renderImposedPrev(){
   const pc=document.getElementById('prevCap');
   if(pc) pc.textContent='합본 미리보기 · '+_imp.pages.length+'쪽 · '+
     (state.mode==='cut' ? '절취선 인쇄' :
-      ((state.machine==='silhouette'?'실루엣':'브라더')+' 등록 마크 인쇄'))+
+      ('브라더 등록 마크 인쇄'))+
     (state.mode==='mark'?' · 세로 전용':'');
   drawOpsPage(pv, pctx, _imp.pages[_imp.p]);
 }

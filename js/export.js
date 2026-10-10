@@ -230,7 +230,7 @@ async function buildPdfBlob(){
       ctext(t3, 6.5, Math.min(pg.h-5, uB+5.5), 0.55);
     } else {
       for(const mk of L.marks) primToOps(mk, ops);   // extracted glyph images -> OCG sub-layer
-      const nm = state.machine==='silhouette'?'SILHOUETTE TYPE 1 REGISTRATION MARKS (EXTRACTED)':'BROTHER SCANNCUT REGISTRATION MARKS (EXTRACTED)';
+      const nm = 'BROTHER SCANNCUT REGISTRATION MARKS (EXTRACTED)';
       const t1='11oz MUG WRAP  '+state.wrap.w+' x '+state.wrap.h+' mm'+(L.nCopies>1?'  -  '+L.nCopies+' UP':'')+'   -   '+nm;
       const t2='no cut lines printed - print at 100% scale on '+pg.name+(state.mirror?' - MIRRORED for sublimation':'');
       ctext(t1, 8, Math.min(pg.h-9, uB+7), 0.4);
@@ -240,7 +240,7 @@ async function buildPdfBlob(){
       [{widthPt:mm2pt(pg.w), heightPt:mm2pt(pg.h), ops}],
       {title:'11oz Mug Wrap Template '+state.wrap.w+'x'+state.wrap.h+'mm'}
     );
-    const tag = state.mode==='cut' ? 'cut' : (state.machine==='silhouette'?'silhouette':'brother');
+    const tag = state.mode==='cut' ? 'cut' : 'brother';
     const name='11oz-mug-'+state.wrap.w+'x'+state.wrap.h+'mm-'+tag+
       (state.paper==='letter'?'-letter':'-a4')+
       (L.nCopies>1?'-x'+L.nCopies:'')+(state.mirror?'-mirror':'')+'.pdf';
@@ -275,14 +275,13 @@ async function buildImposedPdf(machine, paperKey, opt){
     const tag=(artMode==='cut' ? 'cut-'+orient : machine)+'-p'+(pi+1);
     cutFiles.push({name:'11oz-cut-'+tag+'.dxf', data:enc.encode(buildDxf(base))});
     cutFiles.push({name:'11oz-cut-'+tag+'.svg', data:enc.encode(buildSvg(base))});
-    if(state.machine!=='silhouette'){                 // Brother native (.fcm) — open-fcm MIT
-      try{ cutFiles.push({name:'11oz-cut-'+tag+'.fcm', data:buildFcm({...base, pageW:pg.w, pageH:pg.h, name:tag})}); }
-      catch(e){ console.warn('fcm build failed', e); }
-    }
+    // Brother native (.fcm) — open-fcm MIT (실루엣 제거 → 항상 출력)
+    try{ cutFiles.push({name:'11oz-cut-'+tag+'.fcm', data:buildFcm({...base, pageW:pg.w, pageH:pg.h, name:tag})}); }
+    catch(e){ console.warn('fcm build failed', e); }
   });
   return {pdf, name, cutFiles, pageCount:cellPages.length, pages:outPages};
 }
-/* ---- DXF: vector cut outlines for Silhouette Studio / Brother Canvas ---- */
+/* ---- DXF: vector cut outlines for Brother Canvas ---- */
 
 function exportDxf(){
   try{
@@ -291,7 +290,7 @@ function exportDxf(){
     const txt = buildDxf({copies:L.copies, pageW:L.page.w, pageH:L.page.h,
                           wrap:state.wrap, notch:state.notch});
     const blob=new Blob([txt], {type:'application/dxf'});
-    const tag = state.machine==='silhouette'?'silhouette':'brother';
+    const tag = 'brother';
     const name='11oz-mug-'+state.wrap.w+'x'+state.wrap.h+'mm-'+tag+'-cut'+
       (state.paper==='letter'?'-letter':'-a4')+
       (L.nCopies>1?'-x'+L.nCopies:'')+'.dxf';
@@ -438,8 +437,7 @@ async function computeImposedPages(machine, paperKey, opt){
       ctext('11oz MUG WRAP TEMPLATE - '+pg.name+' - handle cutouts at both short edges', 6.5,
         base+11, 0.55);
     }else{
-      const nm=machine==='silhouette'?'SILHOUETTE TYPE 1 REGISTRATION MARKS (EXTRACTED)'
-                                    :'BROTHER SCANNCUT REGISTRATION MARKS (EXTRACTED)';
+      const nm='BROTHER SCANNCUT REGISTRATION MARKS (EXTRACTED)';
       ctext('11oz MUG WRAP  -  '+cells.length+' designs  -  '+nm, 8,
         Math.min(pg.h-9, uB+7), 0.4);
       ctext('no cut lines printed - print at 100% scale on '+pg.name+' - page '+(pi+1)+'/'+pages.length, 6.5,

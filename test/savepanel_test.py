@@ -38,8 +38,6 @@ def main():
             fails.append('letter select should be gone (A4 only)')
         p.click('#modeSeg button[data-v="mark"]')
         p.wait_for_function("!document.getElementById('printModal').classList.contains('busy')", timeout=30000)
-        p.click('#markSeg button[data-v="brother"]')
-        p.wait_for_function("!document.getElementById('printModal').classList.contains('busy')", timeout=30000)
         with p.expect_download() as di2:
             p.click('#exportBtn')
         n2 = di2.value.suggested_filename

@@ -162,9 +162,9 @@ console.log('[buildDxf/buildSvg]');
 }
 /* ---------------- resolveCellSpot (imposed packer, overlap regression) -------- */
 {
-  const box = {x:15.9, y:15.9, w:178.2, h:265.2};            // silhouette safe box on A4
-  const zones = markZones('silhouette', {w:210, h:297});
-  const gap = 3, cw = 87, ch = 205;
+  const box = {x:25.4, y:25.4, w:159.2, h:246.2};           // brother safe box on A4 (inset 25.4 — 실루엣 제거)
+  const zones = markZones('brother', {w:210, h:297});
+  const gap = 3, cw = 70, ch = 205;
   // fresh spot at box origin: TL square zone must push it down, never overlap
   const s1 = resolveCellSpot(box, gap, zones, cw, ch, box.x, box.y);
   ok(s1 && s1.pages === 0, 'resolve: first cell lands on same page');

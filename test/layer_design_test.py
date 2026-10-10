@@ -170,11 +170,14 @@ async def main():
         assert p1[0] > 140 and p1[2] < 130, f'pdf copy1 red: {p1}'
         assert p2[2] > 140 and p2[0] < 130, f'pdf copy2 blue: {p2}'
 
-        # ---- 9. mark mode: 229x89 2-up impossible -> auto fallback to 1 ----
+        # ---- 9. mark mode: 240x89 custom 2-up hits brother TL/BR zones -> auto fallback to 1 ----
+        # (실루엣 제거: A4 코너 마크 기준 229는 2-up이 성공하므로, 코너 존에 겹치는 240mm로 검증)
         await open_print(page)
         await page.click('#modeSeg button[data-v="mark"]')
         await close_print(page)
-        await page.select_option('#presetSel', '229x89')
+        await page.select_option('#presetSel', 'custom')
+        await page.fill('#cwIn', '240'); await page.fill('#chIn', '89')
+        await page.click('#applySize')
         await page.wait_for_timeout(300)
         await open_print(page)
         await page.select_option('#copiesSel', '2')
