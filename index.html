@@ -278,7 +278,7 @@
 
         <div class="row" id="bmCutRow" style="display:none">
           <label class="lbl">컷 파일</label>
-          <label class="cbrow"><input type="checkbox" id="bmCut"><span>DXF + SVG 컷 파일도 함께 저장 (개별 파일 · ZIP 없음)</span></label>
+          <label class="cbrow"><input type="checkbox" id="bmCut"><span>DXF + SVG + FCM 컷 파일도 함께 저장 (개별 파일 · ZIP 없음)</span></label>
         </div>
 
       </div>
@@ -302,7 +302,7 @@
         <div id="exportBar">
           <button class="btn primary" id="exportBtn">PDF 내보내기</button>
           <button class="btn" id="dxfBtn" style="display:none"
-            title="컷 외곽 벡터 — Brother Canvas Workspace에서 불러오기">DXF 내보내기 (컷 외곽)</button>
+            title="컷 외곽 벡터(DXF) + 브라더 네이티브 컷 파일(FCM) — Brother Canvas Workspace에서 불러오기">DXF · FCM 내보내기 (컷 외곽)</button>
           <span class="grow"></span>
           <span class="kv" id="fitInfo"></span>
         </div>
@@ -349,7 +349,7 @@
     <ul>
       <li><b>브라더 스캔앤컷 DX (Print to Cut)</b>: 네 모서리 타깃(동심원+바) 마크 — 공식 <i>Brother ScanNCut Link</i> 매뉴얼 다이어그램에서 <b>이미지로 추출</b> 별도 레이어로 배치했습니다. 용지 <b>A4</b>
         CanvasWorkspace에서 <code>Artboard Size = A4</code> + <code>Show Registration Mark</code>를 켜고 재단 사각형(= 템플릿 크기)을 그려 FCM으로 전송하세요. 배치가 조금 다를 경우를 대비해 마크 위치 오차가 있으면 기기의 스캔(직접 컷) 기능을 쓰세요.</li>
-      <li>이 모드에서는 <b>절취선을 인쇄하지 않습니다</b> — 대신 <b>DXF 내보내기</b>로 컷 외곽 벡터 파일을 받아 브라더 캔버스에 그대로 불러오세요 (레이어 불필요, mm 단위, 페이지 좌표 일치).</li>
+      <li>이 모드에서는 <b>절취선을 인쇄하지 않습니다</b> — 대신 <b>DXF · FCM 내보내기</b>로 컷 외곽 벡터(.dxf)와 브라더 네이티브 컷 파일(.fcm)을 받아 브라더 캔버스에 그대로 불러오세요 (레이어 불필요, mm 단위, 페이지 좌표 일치).</li>
       <li>이 모드의 배치는 <b>세로만</b> 가능하며 병렬 <b>최대 2개</b>까지 배치됩니다.</li>
       <li>선택한 개수가 인식 마크 영역과 겹치면 <b>자동으로 개수를 줄이고 안내</b>합니다 (가능한 크기에서는 2개 그대로).</li> 재단 경계는 인쇄된 디자인 가장자리(배경색 경계)를 보고 재단하거나, 컷 데이터의 사각형을 따릅니다. 배경을 흰색으로 두면 경계가 보이지 않니 배경색을 지정하는 편이 재단하기 쉽습니다.</li>
       <li>마크는 검정으로 또렷해야 인식됩니다. 광택/색이 있는 용지에는 인식이 어려울 수 있습니다.</li>
@@ -371,7 +371,7 @@
   <script src="js/config.js?v=20261004l"></script>
   <!-- data/pipeline -->
   <script src="js/store.js?v=20261006g"></script>
-  <script src="js/export.js?v=20261006g"></script>
+  <script src="js/export.js?v=20261006h"></script>
   <!-- app slices (dependency order) -->
   <script src="js/design-core.js?v=20261006g"></script>
   <script src="js/stage3d.js?v=20261005c"></script>
@@ -381,7 +381,7 @@
   <script src="js/support.js?v=20261005c"></script>
   <script src="js/app.js?v=20261005c"></script>
   <!-- i18n/effects -->
-  <script src="js/i18n.js?v=20261006g"></script>
+  <script src="js/i18n.js?v=20261006h"></script>
   <!-- 3D stage -->
   <script src="js/mv-boot.js?v=20261006f"></script>
 </body>

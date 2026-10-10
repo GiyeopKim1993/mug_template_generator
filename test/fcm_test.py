@@ -48,6 +48,17 @@ def main():
         p.wait_for_timeout(800)
         for d in dl:
             d.save_as(os.path.join(tmp, d.suggested_filename))
+        # ---- DXF · FCM 버튼 경로 (단건 + 마크 모드) → .dxf + .fcm 동시 저장 ----
+        nfirst = len(dl)
+        p.evaluate("()=>{state.mode='mark'; updateExportUI&&updateExportUI();}")
+        p.click('#scopeSeg button[data-v=single]'); p.wait_for_timeout(700)
+        p.click('#dxfBtn')
+        for _ in range(40):
+            p.wait_for_timeout(300)
+            if len(dl) >= nfirst + 2: break
+        p.wait_for_timeout(600)
+        for d in dl[nfirst:]:
+            d.save_as(os.path.join(tmp, d.suggested_filename))
         b.close()
     if errs: flags.append('JS errors: %s' % errs[:3])
     names = sorted(os.path.basename(x) for x in glob.glob(tmp + '/*'))
@@ -59,8 +70,10 @@ def main():
     if not dxf: flags.append('no .dxf (got %s)' % names)
     if not svg: flags.append('no .svg (got %s)' % names)
     # cross-validate with svg2fcm
-    if fcm:
-        fp = os.path.join(tmp, fcm[0])
+    if len(dxf) < 2: flags.append('DXF·FCM button: expected a 2nd .dxf (got %s)' % names)
+    if len(fcm) < 2: flags.append('DXF·FCM button: expected a 2nd .fcm (got %s)' % names)
+    for f0 in fcm:
+        fp = os.path.join(tmp, f0)
         code = r'''
 import sys, json, dataclasses
 sys.path.insert(0, %r)

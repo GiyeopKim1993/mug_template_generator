@@ -110,12 +110,12 @@ function saveFilesSequential(items){
 function openSavePanel(url, blob, name){
   if(_spUrl && _spUrl!==url) URL.revokeObjectURL(_spUrl);
   _spUrl=url;
-  const kind = name.endsWith('.dxf') ? 'dxf' : 'pdf';   // ZIP removed from export flow (R12)
+  const kind = name.endsWith('.dxf') ? 'dxf' : name.endsWith('.fcm') ? 'fcm' : 'pdf';   // ZIP removed from export flow (R12)
   const body=document.getElementById('spBody');
   body.innerHTML='';
   const nm=document.createElement('div'); nm.className='sp-name'; nm.textContent=name;
   const sub=document.createElement('div'); sub.className='sp-sub';
-  sub.textContent=Math.max(1,Math.round(blob.size/1024))+' KB · '+(kind==='dxf'?'DXF 컷 벡터':'PDF (100% 실제 크기)');
+  sub.textContent=Math.max(1,Math.round(blob.size/1024))+' KB · '+(kind==='dxf'?'DXF 컷 벡터':kind==='fcm'?'FCM (브라더 네이티브 컷)':'PDF (100% 실제 크기)');
   body.appendChild(nm); body.appendChild(sub);
   const urlIn=document.createElement('input'); urlIn.className='sp-url'; urlIn.readOnly=true;
   urlIn.value=location.href;
@@ -287,15 +287,19 @@ function exportDxf(){
   try{
     const L=currentLayout();
     if(!L.fits) throw new Error('layout');
-    const txt = buildDxf({copies:L.copies, pageW:L.page.w, pageH:L.page.h,
-                          wrap:state.wrap, notch:state.notch});
-    const blob=new Blob([txt], {type:'application/dxf'});
+    const args={copies:L.copies, pageW:L.page.w, pageH:L.page.h,
+                wrap:state.wrap, notch:state.notch};
+    const txt = buildDxf(args);
     const tag = 'brother';
-    const name='11oz-mug-'+state.wrap.w+'x'+state.wrap.h+'mm-'+tag+'-cut'+
+    const base='11oz-mug-'+state.wrap.w+'x'+state.wrap.h+'mm-'+tag+'-cut'+
       (state.paper==='letter'?'-letter':'-a4')+
-      (L.nCopies>1?'-x'+L.nCopies:'')+'.dxf';
-    const framed=saveFile(blob, name);
-    toast(framed ? '저장 패널: '+name : '저장 완료: '+name,'ok');
+      (L.nCopies>1?'-x'+L.nCopies:'');
+    const items=[{blob:new Blob([txt], {type:'application/dxf'}), name:base+'.dxf'}];
+    // 브라더 네이티브 컷 파일(.fcm)도 함께 — open-fcm MIT
+    try{ items.push({blob:new Blob([buildFcm({...args, name:base})], {type:'application/octet-stream'}),
+                     name:base+'.fcm'}); }
+    catch(e){ console.warn('fcm build failed', e); }
+    saveFilesSequential(items);
   }catch(err){
     console.error(err);
     toast(err.message==='layout' ? '템플릿이 페이지 영역에 맞지 않습니다 — 배치/크기를 조정하세요' : 'DXF 생성 실패: '+err.message,'err');

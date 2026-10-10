@@ -126,7 +126,7 @@
     '좌우 반전(미러) 인쇄':   { ja: '左右反転（ミラー）印刷', en: 'Mirror print (flip horizontal)' },
     '배치별 디자인':          { ja: '配置ごとのデザイン', en: 'Design per slot' },
     'PDF 내보내기':           { ja: 'PDF 書き出し', en: 'Export PDF' },
-    'DXF 내보내기 (컷 외곽)':  { ja: 'DXF 書き出し（カット外形）', en: 'Export DXF (cut outline)' },
+    'DXF · FCM 내보내기 (컷 외곽)': { ja: 'DXF・FCM 書き出し（カット外形）', en: 'Export DXF · FCM (cut outline)' },
 
     /* ---- footer ---- */
     '브라우저 안에서만 동작합니다 — 업로드한 이미지가 어디에도 전송되지 않습니다. ·':
