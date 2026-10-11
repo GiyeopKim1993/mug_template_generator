@@ -66,7 +66,7 @@ def main():
         svgs = [d for d in got if d.suggested_filename.endswith('.svg')]
         dxfs = [d for d in got if d.suggested_filename.endswith('.dxf')]
         check(len(fcms)>=1 and len(svgs)>=1, 'individual svg+fcm downloaded (%d/%d)' % (len(fcms), len(svgs)))
-        check(not dxfs, 'no dxf anymore — export removed (%s)' % [d.suggested_filename for d in dxfs])
+        check(not dxfs, 'no dxf in list cut files — DXF는 마크모드 버튼 전용 (%s)' % [d.suggested_filename for d in dxfs])
         if fcms and svgs:
             tmp = tempfile.mkdtemp()
             fp = os.path.join(tmp, 'c.fcm'); fcms[0].save_as(fp)

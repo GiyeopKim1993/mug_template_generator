@@ -89,8 +89,8 @@
     /* ---- output card ---- */
     '출력':                   { ja: '出力', en: 'Output' },
     '100% 실제 크기':         { ja: '100% 実寸', en: '100% actual size' },
-    '모드 · 용지 · 마크 · 배치 · 미리보기 · PDF/FCM — 전부 다이얼로그에서':
-      { ja: 'モード · 用紙 · マーク · 配置 · プレビュー · PDF/FCM — すべてダイアログで', en: 'Mode · paper · marks · layout · preview · PDF/FCM — all in the dialog' },
+    '모드 · 용지 · 마크 · 배치 · 미리보기 · PDF/FCM/DXF — 전부 다이얼로그에서':
+      { ja: 'モード · 用紙 · マーク · 配置 · プレビュー · PDF/FCM/DXF — すべてダイアログで', en: 'Mode · paper · marks · layout · preview · PDF/FCM/DXF — all in the dialog' },
     '임시 저장':              { ja: '一時保存', en: 'Stash' },
     '전체 내보내기':          { ja: 'すべて書き出し', en: 'Export all' },
     '닫기 ✕':                 { ja: '閉じる ✕', en: 'Close ✕' },
@@ -126,7 +126,7 @@
     '좌우 반전(미러) 인쇄':   { ja: '左右反転（ミラー）印刷', en: 'Mirror print (flip horizontal)' },
     '배치별 디자인':          { ja: '配置ごとのデザイン', en: 'Design per slot' },
     'PDF 내보내기':           { ja: 'PDF 書き出し', en: 'Export PDF' },
-    'PDF · FCM 내보내기 (인쇄 + 컷)': { ja: 'PDF・FCM 書き出し（印刷＋カット）', en: 'Export PDF · FCM (print + cut)' },
+    'PDF · FCM · DXF 내보내기 (인쇄 + 컷)': { ja: 'PDF・FCM・DXF 書き出し（印刷＋カット）', en: 'Export PDF · FCM · DXF (print + cut)' },
 
     /* ---- footer ---- */
     '브라우저 안에서만 동작합니다 — 업로드한 이미지가 어디에도 전송되지 않습니다. ·':

@@ -110,12 +110,12 @@ function saveFilesSequential(items){
 function openSavePanel(url, blob, name){
   if(_spUrl && _spUrl!==url) URL.revokeObjectURL(_spUrl);
   _spUrl=url;
-  const kind = name.endsWith('.fcm') ? 'fcm' : name.endsWith('.svg') ? 'svg' : 'pdf';   // ZIP removed from export flow (R12)
+  const kind = name.endsWith('.fcm') ? 'fcm' : name.endsWith('.svg') ? 'svg' : name.endsWith('.dxf') ? 'dxf' : 'pdf';   // ZIP removed from export flow (R12)
   const body=document.getElementById('spBody');
   body.innerHTML='';
   const nm=document.createElement('div'); nm.className='sp-name'; nm.textContent=name;
   const sub=document.createElement('div'); sub.className='sp-sub';
-  sub.textContent=Math.max(1,Math.round(blob.size/1024))+' KB · '+(kind==='fcm'?'FCM (브라더 네이티브 컷)':kind==='svg'?'SVG 컷 벡터':'PDF (100% 실제 크기)');
+  sub.textContent=Math.max(1,Math.round(blob.size/1024))+' KB · '+(kind==='fcm'?'FCM (브라더 네이티브 컷)':kind==='svg'?'SVG 컷 벡터':kind==='dxf'?'DXF 컷 벡터':'PDF (100% 실제 크기)');
   body.appendChild(nm); body.appendChild(sub);
   const urlIn=document.createElement('input'); urlIn.className='sp-url'; urlIn.readOnly=true;
   urlIn.value=location.href;
@@ -127,6 +127,8 @@ function openSavePanel(url, blob, name){
   const hint=document.createElement('div'); hint.className='sp-hint';
   hint.innerHTML = kind==='pdf'
     ? '미리보기가 다운로드를 차단합니다. <b>① 「새 창으로 열기」</b> → 그 창에서 내보내기 <b>② 주소 복사 → 새 탭 붙여넣기</b> <b>③ 미리보기 툴바 💾 / 우클릭 저장</b> <b>④ 버튼을 폴더로 드래그</b>'
+    : kind==='dxf'
+    ? '<b>① 새 창으로 열기 ② 주소 복사→새 탭</b> ③ 우클릭 저장 ④ 드래그 · DXF는 「내용 복사」→메모장 붙여넣기→.dxf 저장도 됩니다'
     : '<b>① 새 창으로 열기 ② 주소 복사→새 탭</b> ③ 우클릭 저장 ④ 드래그 — 새 창/새 탭이면 내보내기가 바로 저장됩니다';
   body.appendChild(hint);
   const btns=document.createElement('div'); btns.className='sp-btns';
@@ -152,6 +154,14 @@ function openSavePanel(url, blob, name){
     document.body.appendChild(a); a.click(); a.remove();
     toast('다시 시도함 — 여전히 안 되면 위 미리보기에서 저장하세요');
   });
+  if(kind==='dxf'){
+    mk('📋 내용 복사', async ()=>{
+      try{ const t=await (await fetch(url)).text();
+        await navigator.clipboard.writeText(t);
+        toast('DXF 내용이 클립보드에 복사됨 — 메모장에 붙여넣기 후 .dxf로 저장','ok');
+      }catch(e){ toast('복사 실패 — 위 미리보기에서 우클릭 저장하세요','err'); }
+    });
+  }
   mk('🔗 주소 복사 (새 탭용)', async ()=>{
     try{ await navigator.clipboard.writeText(location.href);
       toast('주소 복사됨 — 새 탭에 붙여넣고 내보내기 → 바로 저장됩니다','ok');
@@ -285,6 +295,10 @@ async function exportPdfFcm(){
     try{ items.push({blob:new Blob([buildFcm({...args, name:base})], {type:'application/octet-stream'}),
                      name:base+'.fcm'}); }
     catch(e){ console.warn('fcm build failed', e); }
+    // 실루엣 스튜디오용 컷 벡터(.dxf) — 무료 Basic 에디션도 DXF 임포트 가능
+    try{ items.push({blob:new Blob([buildDxf(args)], {type:'application/dxf'}),
+                     name:base+'.dxf'}); }
+    catch(e){ console.warn('dxf build failed', e); }
     saveFilesSequential(items);
   }catch(err){
     console.error(err);

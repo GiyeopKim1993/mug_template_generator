@@ -87,14 +87,22 @@ async def main():
         page.on('download', lambda d: dls1.append(d))
         async with page.expect_download() as dinfo:
             await page.click('#pdfFcmBtn')
-        await dinfo.value
-        await page.wait_for_timeout(1500)      # fcm lands ~400ms after the pdf
+        for _ in range(20):
+            if len(dls1) >= 3: break
+            await page.wait_for_timeout(300)
+        await page.wait_for_timeout(500)
         names1 = [d.suggested_filename for d in dls1]
-        print('pdf·fcm single:', names1)
+        print('pdf·fcm·dxf single:', names1)
         assert any(n.endswith('.pdf') and 'brother' in n for n in names1), f'mark pdf in bundle: {names1}'
         assert any(n.endswith('.fcm') for n in names1), f'fcm in bundle: {names1}'
-        assert not any(n.endswith('.dxf') for n in names1), f'no dxf anymore: {names1}'
+        assert any(n.endswith('.dxf') for n in names1), f'dxf (silhouette) in bundle: {names1}'
         assert {n[:-4] for n in names1 if n.endswith('.fcm')} <= {n[:-4] for n in names1 if n.endswith('.pdf')}, f'pdf/fcm share base: {names1}'
+        assert {n[:-4] for n in names1 if n.endswith('.dxf')} <= {n[:-4] for n in names1 if n.endswith('.pdf')}, f'pdf/dxf share base: {names1}'
+        dxf1 = [d for d in dls1 if d.suggested_filename.endswith('.dxf')][0]
+        dxf1_path = os.path.join(OUT, 'cut1.dxf')
+        await dxf1.save_as(dxf1_path)
+        txt1 = open(dxf1_path, encoding='utf-8', errors='replace', newline='').read()
+        assert 'AC1009' in txt1 and txt1.strip().endswith('EOF'), 'dxf parses as R12 DXF'
         fcm1 = [d for d in dls1 if d.suggested_filename.endswith('.fcm')][0]
         fcm1_path = os.path.join(OUT, 'cut1.fcm')
         await fcm1.save_as(fcm1_path)
@@ -109,13 +117,15 @@ async def main():
         page.on('download', lambda d: dls2.append(d))
         async with page.expect_download() as dinfo:
             await page.click('#pdfFcmBtn')
-        await dinfo.value
-        await page.wait_for_timeout(1500)
+        for _ in range(20):
+            if len(dls2) >= 3: break
+            await page.wait_for_timeout(300)
+        await page.wait_for_timeout(500)
         names2 = [d.suggested_filename for d in dls2]
-        print('pdf·fcm 2-up:', names2)
+        print('pdf·fcm·dxf 2-up:', names2)
         assert any(n.endswith('.pdf') and '-x2' in n for n in names2), f'2-up pdf: {names2}'
         assert any(n.endswith('.fcm') and '-x2' in n for n in names2), f'2-up fcm: {names2}'
-        assert not any(n.endswith('.dxf') for n in names2), f'no dxf anymore: {names2}'
+        assert any(n.endswith('.dxf') and '-x2' in n for n in names2), f'2-up dxf: {names2}'
 
         # ---------- PDF · FCM hidden again in cut mode ----------
         await open_print(page)
