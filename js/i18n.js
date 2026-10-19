@@ -13,7 +13,7 @@
     '소개':                        { ja: '紹介', en: 'About' },
     '문의':                        { ja: 'お問い合わせ', en: 'Contact' },
     '개인정보처리방침':            { ja: 'プライバシーポリシー', en: 'Privacy Policy' },
-    '높이 맞추기 (랩 높이)':        { ja: '高さを合わせる（ラップ高）', en: 'Fit height (wrap height)' },
+    '높이 맞추기':              { ja: '高さを合わせる', en: 'Fit height' },
     '뒤로 보내기':                  { ja: '背面へ移動', en: 'Send backward' },
     '맨 뒤로 보내기':               { ja: '最背面へ移動', en: 'Send to back' },
     /* ---- header ---- */
@@ -26,7 +26,7 @@
     '작업':                   { ja: 'ツール', en: 'Tools' },
     '드래그=이동 · 휠=크기 · 핸들=리사이즈': { ja: 'ドラッグ=移動 · ホイール=サイズ · ハンドル=リサイズ', en: 'Drag=move · Wheel=size · Handles=resize' },
     '업로드':                 { ja: 'アップロード', en: 'Upload' },
-    '채우기':                 { ja: 'フィット', en: 'Fill' },
+    '너비 맞추기':              { ja: '幅を合わせる', en: 'Fit width' },
     '가운데':                 { ja: '中央', en: 'Center' },
     '크롭':                   { ja: '切り抜き', en: 'Crop' },
     '삭제':                   { ja: '削除', en: 'Delete' },

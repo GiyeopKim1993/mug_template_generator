@@ -23,7 +23,8 @@
       <div class="body ed-grid">
         <div class="toolrail" role="toolbar" aria-label="편집 도구">
           <button class="tool" id="fileBtn" title="이미지 업로드… (드래그&드롭 · Ctrl+V 가능)"><span class="ic">＋</span><span class="tl">업로드</span></button>
-          <button class="tool" id="fitBtn" title="면에 꽉 채우기 (단축키 F)"><span class="ic">⛶</span><span class="tl">채우기<kbd>F</kbd></span></button>
+          <button class="tool" id="fitBtn" title="너비를 면에 꽉 차게 맞추기 (단축키 F)"><span class="ic">⛶</span><span class="tl">너비 맞추기<kbd>F</kbd></span></button>
+          <button class="tool" id="hfitBtn" title="선택한 이미지의 높이를 랩(템플릿) 높이에 비율 유지 맞춤"><span class="ic">⇕</span><span class="tl">높이 맞추기</span></button>
           <button class="tool" id="centerBtn" title="가운데 정렬"><span class="ic">⊹</span><span class="tl">가운데</span></button>
           <button class="tool" id="cropBtn" title="선택 이미지를 사각형으로 자르기 (단축키 C)"><span class="ic">✂</span><span class="tl">크롭<kbd>C</kbd></span></button>
           <button class="tool" id="rmBtn" title="선택 이미지 삭제 (Delete)"><span class="ic">🗑</span><span class="tl">삭제</span></button>
@@ -74,8 +75,6 @@
             <button data-a="vc" title="세로 가운데">↕</button>
             <button data-a="b" title="아래쪽 맞춤">↧</button>
           </div>
-          <span class="cb-sep"></span>
-          <button class="btn small" id="hfitBtn" title="선택한 이미지의 높이를 랩(템플릿) 높이에 비율 유지 맞춤">높이 맞추기 (랩 높이)</button>
         </div>
         <div id="cropBar">
           <span>✂ 크롭 모드 — 사각형 안=이동, 모서리 핸들=크기 조절</span>
@@ -381,7 +380,7 @@
   <script src="js/support.js?v=20261010a"></script>
   <script src="js/app.js?v=20261005c"></script>
   <!-- i18n/effects -->
-  <script src="js/i18n.js?v=20261011a"></script>
+  <script src="js/i18n.js?v=20261011b"></script>
   <!-- 3D stage -->
   <script src="js/mv-boot.js?v=20261006f"></script>
 </body>

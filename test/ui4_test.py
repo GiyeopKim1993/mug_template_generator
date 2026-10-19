@@ -62,7 +62,7 @@ def main():
         geo = p.evaluate("""()=>{
           const g=id=>{const r=document.getElementById(id).getBoundingClientRect();
             return {x:r.x, y:r.y, r:r.right, b:r.bottom, w:r.width, h:r.height};};
-          const railIds=['fileBtn','fitBtn','centerBtn','cropBtn','rmBtn','bgColor'];
+          const railIds=['fileBtn','fitBtn','hfitBtn','centerBtn','cropBtn','rmBtn','bgColor'];
           return {canvas:g('editor'),
                   rail: railIds.map(id=>{const e=document.getElementById(id); if(!e) return null;
                       const r=e.getBoundingClientRect(); return {id, x:r.x, y:r.y, w:r.width, h:r.height};}),
